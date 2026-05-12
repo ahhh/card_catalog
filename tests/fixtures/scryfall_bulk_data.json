@@ -1,0 +1,30 @@
+{
+  "object": "list",
+  "has_more": false,
+  "data": [
+    {
+      "object": "bulk_data",
+      "id": "bulk-default",
+      "type": "default_cards",
+      "updated_at": "2026-05-12T08:00:00Z",
+      "uri": "https://api.scryfall.com/bulk-data/bulk-default",
+      "name": "Default Cards",
+      "description": "Latest English version of each card.",
+      "size": 1234567,
+      "download_uri": "https://example.invalid/default-cards.json",
+      "content_type": "application/json",
+      "content_encoding": "gzip",
+      "object_count": 200
+    },
+    {
+      "object": "bulk_data",
+      "id": "bulk-all",
+      "type": "all_cards",
+      "updated_at": "2026-05-12T08:00:00Z",
+      "name": "All Cards",
+      "size": 9876543,
+      "download_uri": "https://example.invalid/all-cards.json",
+      "object_count": 9000
+    }
+  ]
+}

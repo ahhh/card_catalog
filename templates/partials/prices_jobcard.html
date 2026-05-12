@@ -1,0 +1,109 @@
+{# A single TCGCSV refresh job card. Self-polls while running. #}
+{# Expects: job (dict from _job_view), poll_url (str | None) #}
+
+{%- macro _fmt_duration(secs) -%}
+  {%- if secs is none -%}—
+  {%- elif secs < 60 -%}{{ '%.1f'|format(secs) }}s
+  {%- else -%}{{ (secs // 60)|int }}m {{ (secs % 60)|int }}s
+  {%- endif -%}
+{%- endmacro -%}
+
+<div id="job-{{ job.id }}"
+     class="job-card{{ ' job-card--terminal' if job.is_terminal else ' job-card--running' }}"
+     {% if poll_url and not job.is_terminal %}
+       hx-get="{{ poll_url }}"
+       hx-trigger="every 800ms"
+       hx-swap="outerHTML"
+     {% endif %}>
+
+  <div class="cluster" style="justify-content: space-between; gap: 12px;">
+    <div class="cluster cluster--tight" style="min-width: 0;">
+      {% if job.status == 'running' or job.status == 'pending' %}
+        <svg class="icon" viewBox="0 0 24 24" style="color: var(--gold-1); animation: cc-spin 1.4s linear infinite;">
+          <path d="M21 12a9 9 0 1 1-6.2-8.55" />
+        </svg>
+        <span class="badge badge--gold">Running</span>
+      {% elif job.status == 'completed' %}
+        <svg class="icon" viewBox="0 0 24 24" style="color: var(--success);">
+          <path d="M5 12l5 5L20 7" />
+        </svg>
+        <span class="badge badge--success">Done</span>
+      {% elif job.status == 'failed' %}
+        <svg class="icon" viewBox="0 0 24 24" style="color: var(--danger);">
+          <circle cx="12" cy="12" r="9" /><path d="M9 9l6 6M15 9l-6 6" />
+        </svg>
+        <span class="badge badge--danger">Failed</span>
+      {% else %}
+        <span class="badge">{{ job.status }}</span>
+      {% endif %}
+      <span class="muted mono" style="font-size: 11.5px;">
+        {{ job.started_at.strftime('%H:%M:%S UTC') if job.started_at else '' }}
+      </span>
+    </div>
+    <span class="num muted" style="font-size: 12px;">
+      {% if job.total %}{{ job.done }} / {{ job.total }}{% else %}{{ job.done }}{% endif %}
+      {% if job.total %}· {{ job.progress_pct }}%{% endif %}
+    </span>
+  </div>
+
+  <div class="progress" style="margin-top: 10px;" aria-label="Refresh progress">
+    <div class="progress__bar" style="width: {{ job.progress_pct }}%;"></div>
+  </div>
+
+  {% if job.detail and not job.is_terminal %}
+    <p class="subtle" style="font-size: 12px; margin: 8px 0 0;">{{ job.detail }}</p>
+  {% endif %}
+
+  {% if job.is_terminal %}
+    <div class="job-card__summary">
+      <div class="job-card__metric">
+        <span class="job-card__metric-label">Rows updated</span>
+        <span class="job-card__metric-value num">{{ '{:,}'.format(job.updates) }}</span>
+      </div>
+      <div class="job-card__metric">
+        <span class="job-card__metric-label">Sets matched</span>
+        <span class="job-card__metric-value num">{{ job.mapped_sets }}</span>
+      </div>
+      <div class="job-card__metric">
+        <span class="job-card__metric-label">Duration</span>
+        <span class="job-card__metric-value num">{{ _fmt_duration(job.duration_s) }}</span>
+      </div>
+      <div class="job-card__metric">
+        <span class="job-card__metric-label">Unmapped</span>
+        <span class="job-card__metric-value num{% if job.unmapped_sets %} job-card__metric-value--warn{% endif %}">
+          {{ job.unmapped_sets|length }}
+        </span>
+      </div>
+    </div>
+
+    {% if job.error %}
+      <p style="color: var(--danger); font-size: 12.5px; margin: 12px 0 0;">{{ job.error }}</p>
+    {% endif %}
+
+    {% if show_reload %}
+      <div class="cluster" style="justify-content: flex-end; margin-top: 12px;">
+        <a class="btn btn--secondary btn--sm" href="/prices">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+            <path d="M21 3v5h-5" />
+          </svg>
+          Reload page
+        </a>
+      </div>
+    {% endif %}
+
+    {% if job.unmapped_sets %}
+      <details class="job-card__unmapped">
+        <summary>
+          <span class="badge badge--warn">{{ job.unmapped_sets|length }} unmapped set{{ 's' if job.unmapped_sets|length != 1 else '' }}</span>
+          <span class="muted" style="font-size: 12px; margin-left: 8px;">Click to view set codes</span>
+        </summary>
+        <div class="job-card__unmapped-list">
+          {% for code in job.unmapped_sets %}
+            <code class="mono">{{ code|upper }}</code>
+          {% endfor %}
+        </div>
+      </details>
+    {% endif %}
+  {% endif %}
+</div>

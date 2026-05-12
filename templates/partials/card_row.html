@@ -1,0 +1,46 @@
+{% from "partials/macros.html" import mana_cost, rarity_pip, foil_indicator, condition_badge, money %}
+
+{# A single <tr> in the list view. Always rendered inside card_table.html. #}
+{% set card = entry.card %}
+{% set price = result.latest_prices.get(entry.id) %}
+{% set currency = currency if currency is defined else 'USD' %}
+
+<tr id="entry-row-{{ entry.id }}"
+    hx-get="/cards/{{ card.scryfall_id }}?slideover=1"
+    hx-target="#slideover-mount"
+    hx-trigger="click target:not(input):not(button):not(a):not(.row-check)">
+  <td class="col-check" onclick="event.stopPropagation()">
+    <input type="checkbox" class="check row-check" value="{{ entry.id }}" aria-label="Select row" />
+  </td>
+  <td class="col-thumb">
+    <div class="mini-thumb" style="{% if card.image_small_uri %}background-image: url('{{ card.image_small_uri }}');{% endif %}"></div>
+  </td>
+  <td class="cell--name">
+    {{ card.name }}
+    {% if entry.tags %}
+      <div class="cluster cluster--tight" style="margin-top: 4px;">
+        {% for tag in entry.tags %}<span class="tag-chip">{{ tag.name }}</span>{% endfor %}
+      </div>
+    {% endif %}
+  </td>
+  <td class="col-set">
+    <div>{{ card.set_code|upper }}</div>
+    <div class="col-set-num">#{{ card.collector_number }}</div>
+  </td>
+  <td>{{ mana_cost(card.mana_cost) }}</td>
+  <td class="col-type">{{ card.type_line or '—' }}</td>
+  <td>{{ rarity_pip(card.rarity) }}</td>
+  <td class="cell--num">×{{ entry.quantity }}</td>
+  <td>{{ condition_badge(entry.condition) }}</td>
+  <td>
+    {% if entry.finish in ('foil','etched') %}
+      {{ foil_indicator(entry.finish) }}
+    {% else %}
+      <span class="subtle" style="font-size: 11px;">—</span>
+    {% endif %}
+  </td>
+  <td class="mono" style="font-size: 11.5px; text-transform: uppercase; color: var(--text-3);">{{ entry.language }}</td>
+  <td class="cell--price">
+    {% if price is not none %}{{ money(price, currency) }}{% else %}<span class="subtle">—</span>{% endif %}
+  </td>
+</tr>

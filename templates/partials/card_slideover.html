@@ -1,0 +1,14 @@
+{% from "partials/macros.html" import mana_cost, rarity_pip, color_dots, foil_indicator, condition_badge, money, sparkline %}
+
+{# A dynamically injected slide-over. JS auto-opens any .slideover[data-auto-open] swapped in. #}
+<div class="slideover" data-auto-open data-dynamic="1">
+  <div class="slideover__backdrop" aria-hidden="true"></div>
+  <article class="slideover__panel" role="dialog" aria-labelledby="slideover-title-{{ card.scryfall_id }}">
+    <button type="button" class="btn btn--icon btn--ghost slideover__close"
+            data-slideover-close aria-label="Close">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M6 18L18 6"/></svg>
+    </button>
+
+    {% include "partials/card_detail_inner.html" %}
+  </article>
+</div>

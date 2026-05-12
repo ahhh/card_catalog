@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Archidekt · Card Catalog{% endblock %}
+
+{% block content %}
+<style>
+  /* Two-column layout for the export / reconcile pair. Stacks on mobile. */
+  .archidekt-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 980px) {
+    .archidekt-grid { grid-template-columns: 1fr; }
+  }
+  .archidekt-panel { display: flex; flex-direction: column; min-height: 100%; }
+  .archidekt-panel .panel__body { display: flex; flex-direction: column; gap: 18px; }
+
+  /* "Decisive" Export visual: a big iconographic tile that pulls the eye. */
+  .export-hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 20px;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(212, 180, 106, 0.10), transparent 60%),
+      linear-gradient(135deg, var(--ink-2), var(--ink-1));
+    border: 1px solid var(--ink-4);
+    border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .export-hero__icon {
+    width: 44px; height: 44px;
+    border-radius: var(--r-md);
+    background: linear-gradient(180deg, rgba(212, 180, 106, 0.22), rgba(212, 180, 106, 0.04));
+    border: 1px solid rgba(212, 180, 106, 0.35);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gold-3);
+    flex-shrink: 0;
+  }
+  .export-hero__icon .icon { width: 22px; height: 22px; }
+  .export-hero__count {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+    font-size: 30px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--text-1);
+    font-feature-settings: "tnum";
+    letter-spacing: -0.02em;
+  }
+  .export-hero__label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 2px;
+  }
+  .export-hero__sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+  .csv-shape {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-3);
+    background: var(--ink-1);
+    border: 1px dashed var(--ink-4);
+    border-radius: var(--r-sm);
+    padding: 8px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .csv-shape b { color: var(--gold-3); font-weight: 600; }
+
+  /* "Revelatory" Reconcile visual: a roomy input with one decisive action. */
+  .reconcile-form {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .reconcile-form .input {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .reconcile-tip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .reconcile-tip a {
+    color: var(--gold-2);
+    text-decoration: underline;
+    text-decoration-color: rgba(184, 146, 64, 0.4);
+    text-underline-offset: 2px;
+  }
+  .reconcile-tip a:hover { color: var(--gold-3); text-decoration-color: var(--gold-2); }
+
+  /* The placeholder shown before any reconcile has been requested. */
+  .reconcile-placeholder {
+    border: 1px dashed var(--ink-4);
+    border-radius: var(--r-md);
+    padding: 36px 24px;
+    text-align: center;
+    color: var(--text-3);
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(212, 180, 106, 0.05), transparent 70%),
+      var(--ink-1);
+  }
+  .reconcile-placeholder__deckbox {
+    width: 54px; height: 54px;
+    margin: 0 auto 14px;
+    color: var(--gold-1);
+    opacity: 0.5;
+  }
+  .reconcile-placeholder__hint {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-4);
+    margin-top: 6px;
+  }
+
+  /* HTMX spinner row */
+  .reconcile-spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--text-3);
+    padding: 8px 0 0;
+  }
+  .reconcile-spinner__dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold-2);
+    animation: rec-pulse 1.1s var(--ease-in-out) infinite;
+  }
+  @keyframes rec-pulse {
+    0%, 100% { opacity: 0.25; transform: scale(0.85); }
+    50%      { opacity: 1;    transform: scale(1.1);  }
+  }
+</style>
+
+<div class="page-header">
+  <div class="page-header__title">
+    <span class="eyebrow">Decks</span>
+    <h1>Archidekt</h1>
+    <p class="subtle" style="margin: 4px 0 0; max-width: 64ch;">
+      Two flows in one place. <em>Send</em> your collection to Archidekt as a CSV,
+      or <em>pull</em> a public deck and see exactly which cards you already own.
+    </p>
+  </div>
+</div>
+
+<div class="archidekt-grid stagger">
+
+  {# ============================== EXPORT ============================== #}
+  <section class="panel archidekt-panel" aria-labelledby="archidekt-export-title">
+    <header class="panel__header">
+      <div>
+        <div class="panel__title" id="archidekt-export-title">Send your collection to Archidekt</div>
+        <div class="panel__subtitle">Generate a CSV in Archidekt's documented import format.</div>
+      </div>
+      <span class="badge badge--gold">Push</span>
+    </header>
+    <div class="panel__body">
+      <div class="export-hero">
+        <div class="export-hero__icon" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M12 3v12m-5-5 5 5 5-5"/>
+            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+          </svg>
+        </div>
+        <div style="flex:1;">
+          <div class="export-hero__label">Ready to export</div>
+          <div class="export-hero__count">{{ '{:,}'.format(distinct_printings) }}</div>
+          <div class="export-hero__sub">
+            unique printings &middot; {{ '{:,}'.format(total_qty) }} total copies
+          </div>
+        </div>
+      </div>
+
+      <p class="subtle" style="margin: 0;">
+        Click <strong>Download CSV</strong>, then upload the file via the importer at
+        <a href="https://archidekt.com/" target="_blank" rel="noopener" style="color: var(--gold-2);">archidekt.com</a>.
+        Archidekt deduplicates against existing decks &mdash; safe to re-run.
+      </p>
+
+      <div class="cluster" style="justify-content: space-between;">
+        <a class="btn btn--primary" href="/archidekt/export.csv" download>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v12m-5-5 5 5 5-5"/>
+            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+          </svg>
+          Download CSV
+        </a>
+        <span class="csv-shape" title="Archidekt's minimum import format">
+          <b>Quantity</b> · <b>Scryfall ID</b>
+        </span>
+      </div>
+
+      <details style="margin-top: 4px;">
+        <summary style="cursor: pointer; font-size: 12.5px; color: var(--text-3);">What's in the file?</summary>
+        <div class="csv-preview" style="margin-top: 10px;">
+          <table>
+            <thead><tr><th>Quantity</th><th>Scryfall ID</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>ae9231fd-053d-4b84-a7a8-86063465bc49</td></tr>
+              <tr><td>4</td><td>f295b713-1d6a-43fd-aebd-6e2dc5d75d63</td></tr>
+              <tr><td>2</td><td>b14d2a3f-7d0a-4e90-b48d-7e90f8e8f1c3</td></tr>
+              <tr><td colspan="2" style="color: var(--text-4);">…aggregated per printing across all finishes / conditions / languages.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  {# ============================== RECONCILE ============================== #}
+  <section class="panel archidekt-panel" aria-labelledby="archidekt-reconcile-title">
+    <header class="panel__header">
+      <div>
+        <div class="panel__title" id="archidekt-reconcile-title">What am I missing?</div>
+        <div class="panel__subtitle">Reconcile against any public Archidekt deck.</div>
+      </div>
+      <span class="badge">Pull</span>
+    </header>
+    <div class="panel__body">
+      <p class="subtle" style="margin: 0;">
+        Paste a public Archidekt deck URL or ID. We'll match it against your collection,
+        printing-agnostic where possible, and show what you'd still need to buy.
+      </p>
+
+      <form class="reconcile-form"
+            hx-post="/archidekt/reconcile"
+            hx-target="#reconcile-output"
+            hx-swap="innerHTML"
+            hx-indicator="#reconcile-spinner"
+            hx-disabled-elt="find button">
+        <input
+          class="input input--mono"
+          type="text"
+          name="deck_input"
+          id="deck_input"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="https://archidekt.com/decks/12345/my-commander-deck  or  12345"
+          aria-label="Archidekt deck URL or numeric ID"
+          required />
+        <button class="btn btn--primary" type="submit">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-9-9"/>
+            <path d="M21 4v5h-5"/>
+          </svg>
+          Reconcile
+        </button>
+      </form>
+
+      <div class="cluster" style="justify-content: space-between;">
+        <span class="reconcile-tip">
+          <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;color:var(--text-4);" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v5M12 16h.01"/>
+          </svg>
+          Matches by oracle id &mdash; any printing you own counts.
+        </span>
+        <span id="reconcile-spinner" class="htmx-indicator reconcile-spinner" role="status">
+          <span class="reconcile-spinner__dot" aria-hidden="true"></span>
+          Fetching deck from Archidekt…
+        </span>
+      </div>
+
+      <div id="reconcile-output" class="fade-in">
+        <div class="reconcile-placeholder">
+          <svg class="reconcile-placeholder__deckbox" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 7l9-4 9 4-9 4-9-4z"/>
+            <path d="M3 7v10l9 4 9-4V7"/>
+            <path d="M12 11v10"/>
+            <path d="M7 9l5 2 5-2" opacity="0.5"/>
+          </svg>
+          <div class="empty__title" style="font-size: 18px;">Awaiting deck URL</div>
+          <p class="empty__body" style="margin: 6px auto 0;">
+            Drop in a public Archidekt deck above. Results render here without a page reload.
+          </p>
+          <div class="reconcile-placeholder__hint">Pull · Public decks only</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // "Try an example" — pre-fills the input with the user's own card if listed,
+  // else a well-known commander deck. Kept tiny on purpose.
+  document.addEventListener("click", function (ev) {
+    const t = ev.target.closest("[data-prefill]");
+    if (!t) return;
+    ev.preventDefault();
+    const input = document.getElementById("deck_input");
+    if (input) {
+      input.value = t.getAttribute("data-prefill");
+      input.focus();
+    }
+  });
+</script>
+{% endblock %}

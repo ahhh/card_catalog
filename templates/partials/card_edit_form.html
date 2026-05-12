@@ -1,0 +1,110 @@
+{# Inline edit form. Replaces a .copy-row in the slide-over via outerHTML swap.
+   On save → swaps back to the card_row.html (in list view) OR the slide-over .copy-row block. #}
+<style>
+  .edit-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 14px;
+    background: var(--ink-2);
+    border: 1px solid var(--gold-2);
+    border-radius: var(--r-md);
+    box-shadow: 0 0 0 3px rgba(var(--gold-glow), 0.1);
+  }
+  .edit-form .field { gap: 4px; }
+  .edit-form .field__label { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .edit-form .input, .edit-form .select, .edit-form .textarea { font-size: 12.5px; padding: 7px 10px; }
+  .edit-form__full { grid-column: 1 / -1; }
+  .edit-form__qty { display: flex; align-items: center; gap: 6px; }
+  .edit-form__qty button { width: 28px; height: 28px; background: var(--ink-3); border: 1px solid var(--ink-5); border-radius: var(--r-xs); color: var(--text-1); font-family: var(--font-mono); }
+  .edit-form__qty button:hover { background: var(--ink-4); }
+  .edit-form__qty input { text-align: center; font-family: var(--font-mono); }
+  .edit-form__actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid var(--ink-4);
+    padding-top: 10px;
+    margin-top: 4px;
+  }
+</style>
+
+<form class="edit-form copy-row" id="copy-row-{{ entry.id }}"
+      hx-patch="/collection/entries/{{ entry.id }}"
+      hx-target="this"
+      hx-swap="outerHTML"
+      hx-include="this">
+
+  <div class="field">
+    <label class="field__label">Quantity</label>
+    <div class="edit-form__qty">
+      <button type="button" onclick="const i=this.nextElementSibling; i.value=Math.max(0,parseInt(i.value||'0',10)-1);">−</button>
+      <input class="input" type="number" name="quantity" min="0" step="1" value="{{ entry.quantity }}" />
+      <button type="button" onclick="const i=this.previousElementSibling; i.value=parseInt(i.value||'0',10)+1;">+</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="field__label">Condition</label>
+    <select class="select" name="condition">
+      {% for value, label in editor.conditions %}
+        <option value="{{ value }}" {% if entry.condition == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label class="field__label">Finish</label>
+    <select class="select" name="finish">
+      {% for value, label in editor.finishes %}
+        <option value="{{ value }}" {% if entry.finish == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label class="field__label">Language</label>
+    <input class="input input--mono" type="text" name="language" maxlength="8" value="{{ entry.language }}" />
+  </div>
+
+  <div class="field">
+    <label class="field__label">Purchase price</label>
+    <input class="input" type="number" name="purchase_price" step="0.01" min="0"
+           value="{{ entry.purchase_price if entry.purchase_price is not none else '' }}"
+           placeholder="—" />
+  </div>
+
+  <div class="field">
+    <label class="field__label">For trade</label>
+    <label class="toggle" style="margin-top: 4px;">
+      <input type="checkbox" name="for_trade" value="1" {% if entry.for_trade %}checked{% endif %} />
+      <span class="toggle__track"></span>
+    </label>
+  </div>
+
+  <div class="field edit-form__full">
+    <label class="field__label">Notes</label>
+    <textarea class="textarea" name="notes" rows="2" placeholder="Optional">{{ entry.notes or '' }}</textarea>
+  </div>
+
+  <div class="edit-form__actions">
+    <button type="submit" class="btn btn--primary btn--sm">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+      Save
+    </button>
+    <button type="button" class="btn btn--ghost btn--sm"
+            hx-get="/cards/{{ entry.scryfall_id }}?slideover=1"
+            hx-target="#slideover-mount"
+            hx-swap="innerHTML">Cancel</button>
+    <span class="spacer"></span>
+    <button type="button" class="btn btn--danger btn--sm"
+            hx-delete="/collection/entries/{{ entry.id }}"
+            hx-target="this"
+            hx-swap="none"
+            hx-confirm="Delete this copy?"
+            onclick="setTimeout(() => document.getElementById('copy-row-{{ entry.id }}').remove(), 200);">
+      Delete copy
+    </button>
+  </div>
+</form>

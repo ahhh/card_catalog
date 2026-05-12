@@ -1,0 +1,40 @@
+{# A single "your copies" row inside the card detail view.
+   Used standalone as a swap target after inline edit. #}
+{% from "partials/macros.html" import foil_indicator, condition_badge, money %}
+
+<div class="copy-row" id="copy-row-{{ entry.id }}">
+  <div>
+    <div class="copy-row__meta">
+      <span class="copy-row__qty">×{{ entry.quantity }}</span>
+      {{ condition_badge(entry.condition) }}
+      {% if entry.finish != 'nonfoil' %}{{ foil_indicator(entry.finish) }}{% endif %}
+      <span class="mono subtle" style="font-size: 11px; text-transform: uppercase;">{{ entry.language }}</span>
+      {% if entry.for_trade %}<span class="badge badge--gold">Trade</span>{% endif %}
+      {% if entry.altered %}<span class="badge">Altered</span>{% endif %}
+      {% if entry.misprint %}<span class="badge">Misprint</span>{% endif %}
+      {% if entry.purchase_price %}
+        <span class="subtle" style="font-size: 11.5px;">
+          paid {{ money(entry.purchase_price, entry.purchase_currency or 'USD') }}
+        </span>
+      {% endif %}
+    </div>
+    {% if entry.notes %}<div class="copy-row__notes">"{{ entry.notes }}"</div>{% endif %}
+    {% if entry.tags %}
+      <div class="cluster cluster--tight" style="margin-top: 6px;">
+        {% for tag in entry.tags %}<span class="tag-chip">{{ tag.name }}</span>{% endfor %}
+      </div>
+    {% endif %}
+  </div>
+  <div class="copy-row__actions">
+    <button class="btn btn--ghost btn--sm"
+            hx-get="/collection/entries/{{ entry.id }}/edit"
+            hx-target="closest .copy-row"
+            hx-swap="outerHTML">Edit</button>
+    <button class="btn btn--ghost btn--sm"
+            hx-delete="/collection/entries/{{ entry.id }}"
+            hx-target="closest .copy-row"
+            hx-swap="outerHTML swap:200ms"
+            hx-confirm="Delete this copy?"
+            style="color: var(--danger);">Delete</button>
+  </div>
+</div>

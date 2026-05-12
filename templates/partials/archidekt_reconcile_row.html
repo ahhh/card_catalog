@@ -1,0 +1,42 @@
+{% from "partials/macros.html" import mana_cost, money %}
+{# Expects: row (ReconcileRow) #}
+{% set dc = row.deck_card %}
+<div class="reconcile-row {% if row.missing_qty > 0 %}reconcile-row--missing{% endif %}"
+     role="row"
+     data-needed="{{ row.needed_qty }}"
+     data-owned="{{ row.owned_qty }}"
+     data-missing="{{ row.missing_qty }}">
+  <div class="reconcile-row__thumb-cell">
+    {% if row.image_uri %}
+      <div class="reconcile-row__thumb" style="background-image: url('{{ row.image_uri }}');"
+           role="img" aria-label="{{ dc.name }}"></div>
+    {% else %}
+      <div class="reconcile-row__thumb" aria-hidden="true"></div>
+    {% endif %}
+  </div>
+
+  <div>
+    {{ mana_cost(dc.mana_cost) }}
+  </div>
+
+  <div class="reconcile-row__main">
+    <span class="reconcile-row__name" title="{{ dc.name }}">{{ dc.name }}</span>
+    <span class="reconcile-row__sub">
+      <span class="badge">{{ dc.category }}</span>
+      {% if dc.type_line %}
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ dc.type_line }}</span>
+      {% endif %}
+      {% if row.cheapest_market_price is not none and row.missing_qty > 0 %}
+        <span class="subtle" title="Cheapest unowned printing">{{ money(row.cheapest_market_price) }} ea</span>
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="reconcile-row__num">{{ row.needed_qty }}</div>
+  <div class="reconcile-row__num {% if row.owned_qty >= row.needed_qty %}reconcile-row__num--complete{% endif %}">
+    {{ row.owned_qty }}
+  </div>
+  <div class="reconcile-row__num {% if row.missing_qty > 0 %}reconcile-row__num--missing{% endif %}">
+    {{ row.missing_qty }}
+  </div>
+</div>

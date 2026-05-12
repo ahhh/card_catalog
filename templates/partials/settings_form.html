@@ -1,0 +1,64 @@
+<form id="settings-form" class="stack stack--loose"
+      hx-post="/settings"
+      hx-target="#settings-form"
+      hx-swap="outerHTML">
+  {% if saved %}
+    <div class="toast toast--success" style="position: relative; top: auto; right: auto; max-width: none;">
+      <div>
+        <p class="toast__title">Saved</p>
+        <p class="toast__body">Your settings are persisted to the local database.</p>
+      </div>
+    </div>
+  {% endif %}
+
+  {% for group_key, group_label, group_desc in groups %}
+    <section class="panel">
+      <header class="panel__header">
+        <div>
+          <div class="panel__title">{{ group_label }}</div>
+          <div class="panel__subtitle">{{ group_desc }}</div>
+        </div>
+      </header>
+      <div class="panel__body stack stack--loose">
+        {% for spec in specs if spec.group == group_key %}
+          <div class="field" style="display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start;">
+            <div>
+              <div class="field__label">{{ spec.label }}</div>
+              <div class="field__help">{{ spec.description }}</div>
+            </div>
+            <div>
+              {% if spec.kind == 'select' %}
+                <select class="select" name="{{ spec.key }}">
+                  {% for value, label in spec.options %}
+                    <option value="{{ value }}" {% if values.get(spec.key) == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              {% elif spec.kind == 'secret' %}
+                <input class="input input--mono" type="password" name="{{ spec.key }}"
+                       value="{{ values.get(spec.key, '') }}"
+                       placeholder="{{ spec.placeholder }}"
+                       autocomplete="off"
+                       spellcheck="false" />
+              {% elif spec.kind == 'number' %}
+                <input class="input input--mono" type="number" name="{{ spec.key }}"
+                       value="{{ values.get(spec.key, '') }}"
+                       placeholder="{{ spec.placeholder }}" />
+              {% else %}
+                <input class="input" type="text" name="{{ spec.key }}"
+                       value="{{ values.get(spec.key, '') }}"
+                       placeholder="{{ spec.placeholder }}" />
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+
+  <div class="cluster" style="justify-content: flex-end;">
+    <button type="submit" class="btn btn--primary">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+      Save settings
+    </button>
+  </div>
+</form>

@@ -1,0 +1,82 @@
+{% from "partials/macros.html" import mana_cost, rarity_pip, foil_indicator, condition_badge, money %}
+
+{% if result.entries %}
+<style>
+  /* Compact list view; design tokens via app.css */
+  .table .col-check { width: 36px; }
+  .table .col-thumb { width: 48px; }
+  .table .col-set { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); }
+  .table .col-set-num { font-family: var(--font-mono); font-size: 11px; color: var(--text-4); margin-top: 2px; }
+  .table .col-type { color: var(--text-3); font-size: 12px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .table .sort-arrow { font-size: 10px; opacity: 0.6; margin-left: 2px; }
+  .table thead th a { text-decoration: none; }
+</style>
+
+<div class="table-wrap fade-in">
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="col-check">
+          <input type="checkbox" class="check row-check-all" aria-label="Select all" />
+        </th>
+        <th class="col-thumb"></th>
+        {% set s = filt.sort or 'name' %}
+        {% macro sort_th(key, label) %}
+          {% set is_active = s == key or s == '-' ~ key %}
+          {% set is_desc = s == '-' ~ key %}
+          {% set next_sort = key if is_desc else '-' ~ key %}
+          <a class="{{ 'is-active' if is_active else '' }}"
+             onclick="const s=document.querySelector('select[name=sort]'); if (s) s.value='{{ next_sort }}';"
+             hx-get="/collection/table"
+             hx-vals='{"sort": "{{ next_sort }}"}'
+             hx-target="#card-table"
+             hx-include="#filter-form"
+             hx-push-url="true">
+            {{ label }}
+            {% if is_active %}
+              <span class="sort-arrow">{{ '↓' if is_desc else '↑' }}</span>
+            {% endif %}
+          </a>
+        {% endmacro %}
+        <th>{{ sort_th('name', 'Name') }}</th>
+        <th>{{ sort_th('set_code', 'Set') }}</th>
+        <th>Mana</th>
+        <th>Type</th>
+        <th>{{ sort_th('rarity', 'Rarity') }}</th>
+        <th class="right">{{ sort_th('quantity', 'Qty') }}</th>
+        <th>{{ sort_th('condition', 'Cond') }}</th>
+        <th>{{ sort_th('finish', 'Finish') }}</th>
+        <th>{{ sort_th('language', 'Lang') }}</th>
+        <th class="right">{{ sort_th('price', 'Price') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in result.entries %}
+        {% include "partials/card_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include "partials/pagination.html" %}
+
+{% else %}
+  <div class="panel">
+    <div class="panel__body">
+      {% with title="No cards match these filters",
+              body="Try loosening a constraint, clearing colors, or widening the price range.",
+              action_href=None, action_label=None %}
+        {% include "partials/empty_state.html" %}
+      {% endwith %}
+      <div style="text-align: center; margin-top: -8px;">
+        <button type="button" class="btn btn--secondary btn--sm"
+                hx-get="/collection/table?view={{ view }}"
+                hx-target="#card-table"
+                hx-push-url="true"
+                onclick="const f = document.getElementById('filter-form'); if (f) { f.reset(); f.querySelectorAll('input[data-chip]').forEach(el => el.remove()); f.querySelectorAll('[data-chip-toggle][aria-pressed=\'true\']').forEach(el => el.setAttribute('aria-pressed','false')); }">
+          Reset all filters
+        </button>
+      </div>
+    </div>
+  </div>
+{% endif %}

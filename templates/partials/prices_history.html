@@ -1,0 +1,16 @@
+{# List of past TCGCSV refresh runs. Expects: recent_jobs (list of _job_view dicts). #}
+
+{% if recent_jobs %}
+  <div class="stack stack--tight">
+    {% for job in recent_jobs %}
+      {% with poll_url = ('/prices/jobs/' ~ job.id) if not job.is_terminal else None %}
+        {% include "partials/prices_jobcard.html" %}
+      {% endwith %}
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="subtle" style="margin: 0;">
+    No refreshes yet this session. Job history is in-memory — it resets when the app restarts,
+    but <code class="mono">price_history</code> rows persist.
+  </p>
+{% endif %}

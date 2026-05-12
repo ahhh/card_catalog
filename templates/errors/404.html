@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Not found · Card Catalog{% endblock %}
+{% block content %}
+<div class="empty" style="padding-top: 120px;">
+  <div class="empty__icon">
+    <svg class="icon" viewBox="0 0 24 24" style="width:28px;height:28px;">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9 9h.01M15 9h.01M9 16c.85-.85 2.04-1.5 3-1.5s2.15.65 3 1.5"/>
+    </svg>
+  </div>
+  <h1 class="empty__title">This page isn't in the catalog.</h1>
+  <p class="empty__body">Try the navigation up top — or head back to your collection.</p>
+  <a class="btn btn--primary" href="/">Return to overview</a>
+</div>
+{% endblock %}

@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Prices · Card Catalog{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__title">
+    <span class="eyebrow">Market data</span>
+    <h1>Prices</h1>
+    <p class="subtle" style="margin: 4px 0 0; max-width: 64ch;">
+      Daily TCGplayer snapshots delivered by <a href="https://tcgcsv.com" target="_blank" rel="noopener" style="color: var(--gold-2);">tcgcsv.com</a>.
+      Refresh on demand &mdash; we only pull groups that touch sets you actually own.
+    </p>
+  </div>
+  <div class="page-header__actions">
+    <a class="btn btn--ghost" href="/collection">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg>
+      Browse collection
+    </a>
+  </div>
+</div>
+
+{% if not has_any_cards or not has_any_collection %}
+  {# Hard empty: no collection or no Scryfall cache. #}
+  <section class="panel">
+    <div class="panel__body">
+      {% with title="No collection yet",
+              body="Prices follow the cards you own. Import a Manabox CSV first &mdash; we'll resolve every row against Scryfall, then this page lights up.",
+              action_href="/import",
+              action_label="Import a CSV" %}
+        {% include "partials/empty_state.html" %}
+      {% endwith %}
+    </div>
+  </section>
+{% else %}
+
+  {# ---- Hero stat strip ----------------------------------------------- #}
+  <section class="dash-grid stagger">
+    <div class="panel">
+      <div class="panel__body stat">
+        <div class="stat__label">Est. collection value</div>
+        <div class="stat__value stat__value--gold">
+          {% if collection_value %}${{ '{:,.0f}'.format(collection_value) }}{% else %}—{% endif %}
+        </div>
+        <div class="stat__delta">qty &times; coalesce(market, mid) &middot; USD</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel__body stat">
+        <div class="stat__label">Last local refresh</div>
+        <div class="stat__value" style="font-size: clamp(20px, 2.2vw, 28px);">
+          {% if last_refresh %}{{ last_refresh.strftime('%b %d') }}{% else %}<span class="muted">Never</span>{% endif %}
+        </div>
+        <div class="stat__delta">
+          {% if last_refresh %}{{ last_refresh.strftime('%H:%M UTC') }}{% else %}Click refresh below to seed price history.{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel__body stat">
+        <div class="stat__label">TCGCSV last updated</div>
+        <div class="stat__value" style="font-size: clamp(20px, 2.2vw, 28px);">
+          {% if tcgcsv_last_updated %}{{ tcgcsv_last_updated.strftime('%b %d') }}{% else %}<span class="muted">Unknown</span>{% endif %}
+        </div>
+        <div class="stat__delta">
+          {% if tcgcsv_last_updated %}
+            {{ tcgcsv_last_updated.strftime('%H:%M UTC') }}
+            {% if data_available %}<span class="badge badge--gold" style="margin-left: 6px;">Data available</span>{% endif %}
+          {% else %}
+            Last fetched when you refresh.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel__body stat">
+        <div class="stat__label">Tracked printings</div>
+        <div class="stat__value">{{ '{:,}'.format(tracked_cards) }}</div>
+        <div class="stat__delta">
+          {{ '{:,}'.format(total_entries) }} cards across the collection
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ---- Unmapped-sets callout (only when most recent terminal job has any) #}
+  {% if unmapped_sets %}
+    <section class="panel" style="border-color: rgba(232, 168, 71, 0.35); margin-bottom: 22px;">
+      <div class="panel__body">
+        <div class="cluster cluster--tight" style="margin-bottom: 8px;">
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--warning);">
+            <path d="M12 9v4M12 17h.01" />
+            <path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+          <h3 style="margin: 0;">{{ unmapped_sets|length }} set{{ 's' if unmapped_sets|length != 1 else '' }} couldn't be priced</h3>
+        </div>
+        <p style="margin: 0 0 12px; color: var(--text-2); max-width: 72ch;">
+          These set codes from your collection didn't match a TCGCSV group by abbreviation.
+          Promo expansions, Secret Lair drops, and Universes Beyond reprints commonly diverge.
+          Add a manual mapping to
+          <code class="mono" style="padding: 2px 6px; background: var(--ink-2); border-radius: 4px;">{{ overrides_path }}</code>
+          (a JSON object: <code class="mono">{"set_code": tcgplayer_group_id}</code>) and refresh again.
+        </p>
+        <div class="cluster" style="flex-wrap: wrap; gap: 6px;">
+          {% for code in unmapped_sets %}
+            <code class="mono prices-unmapped-chip">{{ code|upper }}</code>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {# ---- Refresh panel ------------------------------------------------- #}
+  <section class="panel" style="margin-bottom: 22px;">
+    <header class="panel__header">
+      <div>
+        <div class="panel__title">Refresh from TCGCSV</div>
+        <div class="panel__subtitle">
+          TCGCSV publishes daily snapshots around 20:00 UTC. Refreshing earlier in the day returns yesterday's data.
+        </div>
+      </div>
+    </header>
+    <div class="panel__body">
+      <div id="refresh-panel">
+        {% if active_job %}
+          {# An active refresh is already in flight — show its job card. #}
+          {% with job = active_job, poll_url = '/prices/jobs/' ~ active_job.id %}
+            {% include "partials/prices_jobcard.html" %}
+          {% endwith %}
+        {% else %}
+          {# Idle state: button + context. #}
+          <div class="cluster" style="justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <div class="stack stack--tight" style="min-width: 0;">
+              <div class="cluster cluster--tight">
+                <svg class="icon" viewBox="0 0 24 24" style="color: var(--gold-1);">
+                  <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                  <path d="M21 3v5h-5" />
+                  <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                  <path d="M3 21v-5h5" />
+                </svg>
+                <strong style="font-size: 14.5px;">Ready to refresh</strong>
+              </div>
+              <p class="subtle" style="margin: 0; font-size: 12.5px;">
+                {% if last_refresh %}
+                  Last refreshed {{ last_refresh_str }} &middot; one polite GET per set in your collection.
+                {% else %}
+                  No prices on file yet. The first refresh seeds <code class="mono">price_history</code> for today.
+                {% endif %}
+              </p>
+            </div>
+            <button class="btn btn--primary"
+                    hx-post="/prices/refresh"
+                    hx-target="#refresh-panel"
+                    hx-swap="innerHTML"
+                    hx-disabled-elt="this">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+              Refresh prices now
+            </button>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {# ---- Recent refreshes --------------------------------------------- #}
+  <section class="panel">
+    <header class="panel__header">
+      <div>
+        <div class="panel__title">Recent refreshes</div>
+        <div class="panel__subtitle">In-memory audit trail for this session.</div>
+      </div>
+      {% if recent_jobs %}
+        <span class="badge">{{ recent_jobs|length }} run{{ 's' if recent_jobs|length != 1 else '' }}</span>
+      {% endif %}
+    </header>
+    <div class="panel__body">
+      {% include "partials/prices_history.html" %}
+    </div>
+  </section>
+
+{% endif %}
+
+<style>
+  .prices-unmapped-chip {
+    padding: 3px 8px;
+    background: rgba(232, 168, 71, 0.08);
+    border: 1px solid rgba(232, 168, 71, 0.3);
+    border-radius: var(--r-sm);
+    font-size: 11.5px;
+    color: var(--warning);
+    letter-spacing: 0.02em;
+  }
+
+  @keyframes cc-spin { to { transform: rotate(360deg); } }
+
+  .job-card {
+    background: var(--ink-1);
+    border: 1px solid var(--ink-4);
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+    transition: border-color var(--d-med) var(--ease-out), background var(--d-med) var(--ease-out);
+  }
+  .job-card--running {
+    border-color: rgba(212, 180, 106, 0.35);
+    background: linear-gradient(180deg, rgba(212, 180, 106, 0.04), var(--ink-1));
+  }
+  .job-card--terminal { border-color: var(--ink-4); }
+
+  .job-card__summary {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 14px;
+    padding: 12px 14px;
+    background: var(--ink-2);
+    border: 1px solid var(--ink-3);
+    border-radius: var(--r-sm);
+  }
+  .job-card__metric { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .job-card__metric-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .job-card__metric-value {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-1);
+    letter-spacing: -0.01em;
+  }
+  .job-card__metric-value--warn { color: var(--warning); }
+
+  .job-card__unmapped { margin-top: 12px; }
+  .job-card__unmapped > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 4px 0;
+    user-select: none;
+  }
+  .job-card__unmapped > summary::-webkit-details-marker { display: none; }
+  .job-card__unmapped-list {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .job-card__unmapped-list code {
+    padding: 3px 8px;
+    background: var(--ink-2);
+    border: 1px solid var(--ink-4);
+    border-radius: var(--r-sm);
+    font-size: 11.5px;
+    color: var(--warning);
+    letter-spacing: 0.02em;
+  }
+</style>
+{% endblock %}

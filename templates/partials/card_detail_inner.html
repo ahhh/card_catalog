@@ -1,0 +1,209 @@
+{% from "partials/macros.html" import mana_cost, rarity_pip, color_dots, foil_indicator, condition_badge, money, sparkline %}
+
+{# Shared inner content for /cards/{id} (full page) and the slide-over. #}
+<style>
+  .copy-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--ink-2);
+    border: 1px solid var(--ink-4);
+    border-radius: var(--r-md);
+    align-items: center;
+    transition: border-color var(--d-fast);
+  }
+  .copy-row + .copy-row { margin-top: 8px; }
+  .copy-row:hover { border-color: var(--ink-5); }
+  .copy-row__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-2); }
+  .copy-row__qty {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 36;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--gold-3);
+    font-feature-settings: "tnum";
+  }
+  .copy-row__notes { font-size: 12px; color: var(--text-3); margin-top: 4px; font-style: italic; }
+  .copy-row__actions { display: flex; gap: 4px; }
+  .legalities { display: flex; flex-wrap: wrap; gap: 4px; }
+  .legality { padding: 2px 8px; font-size: 10.5px; border-radius: var(--r-pill); border: 1px solid var(--ink-4); background: var(--ink-2); color: var(--text-3); }
+  .legality--legal { color: var(--success); border-color: rgba(95,179,124,0.3); background: rgba(95,179,124,0.07); }
+  .legality--restricted { color: var(--warning); border-color: rgba(232,168,71,0.3); background: rgba(232,168,71,0.07); }
+  .legality--banned, .legality--not_legal { color: var(--text-4); }
+  .detail__face-thumbs { display: flex; gap: 8px; margin-top: 10px; }
+  .detail__face-thumbs img { width: 60px; aspect-ratio: 488/680; object-fit: cover; border-radius: 6px; border: 1px solid var(--ink-4); }
+  .price-block__sub {
+    grid-column: 1 / -1;
+    border-top: 1px dashed var(--ink-4);
+    padding-top: 12px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11.5px;
+    color: var(--text-3);
+  }
+</style>
+
+{% set hero_image = card.image_normal_uri %}
+{% if not hero_image and faces %}
+  {% set _img = faces[0].get('image_uris', {}) if faces else {} %}
+  {% set hero_image = _img.get('normal') or _img.get('large') %}
+{% endif %}
+
+<div class="detail">
+  <header class="detail__hero">
+    <div class="detail__image">
+      {% if hero_image %}
+        <img src="{{ hero_image }}" alt="{{ card.name }}" />
+      {% else %}
+        <div class="card-tile__placeholder">{{ card.name[0] if card.name else '?' }}</div>
+      {% endif %}
+    </div>
+    <div class="detail__heading">
+      <h2 class="detail__name" id="slideover-title-{{ card.scryfall_id }}">{{ card.name }}</h2>
+      {% if card.type_line %}<div class="detail__type">{{ card.type_line }}</div>{% endif %}
+      <div class="cluster" style="margin-top: 6px;">
+        {% if card.mana_cost %}{{ mana_cost(card.mana_cost) }}{% endif %}
+        {{ rarity_pip(card.rarity) }}
+        {{ color_dots(colors) }}
+        {% if card.cmc is not none %}<span class="subtle" style="font-size: 11.5px;">CMC {{ card.cmc|int if card.cmc == card.cmc|int else '%.1f'|format(card.cmc) }}</span>{% endif %}
+      </div>
+      <div class="detail__set">
+        <span>{{ card.set_name }}</span>
+        <span class="muted">·</span>
+        <span class="mono" style="font-size: 11px;">#{{ card.collector_number }}</span>
+        {% if entries %}{{ foil_indicator(entries[0].finish) }}{% endif %}
+      </div>
+      {% if faces and faces|length > 1 %}
+        <div class="detail__face-thumbs">
+          {% for face in faces %}
+            {% set fi = face.get('image_uris', {}) %}
+            {% if fi.get('small') or fi.get('normal') %}
+              <img src="{{ fi.get('small') or fi.get('normal') }}" alt="{{ face.get('name', '') }}" title="{{ face.get('name', '') }}" />
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if faces and faces|length > 1 %}
+    {% for face in faces %}
+      {% if face.get('oracle_text') %}
+        <div class="detail__oracle">
+          <div style="font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); font-weight: 600; margin-bottom: 6px;">
+            {{ face.get('name', 'Face ' ~ loop.index) }}
+            {% if face.get('mana_cost') %}<span style="margin-left:8px;">{{ mana_cost(face.get('mana_cost')) }}</span>{% endif %}
+          </div>
+          {{ face.get('oracle_text') }}
+        </div>
+        {% if not loop.last %}<div style="height: 10px;"></div>{% endif %}
+      {% endif %}
+    {% endfor %}
+  {% elif card.oracle_text %}
+    <div class="detail__oracle">{{ card.oracle_text }}</div>
+  {% endif %}
+
+  <section class="detail__section">
+    <h4>Market</h4>
+    {% if latest %}
+      <div class="price-block">
+        <div class="price-block__cell">
+          <div class="price-block__label">Market</div>
+          <div class="price-block__value">{{ money(latest.market, currency) }}</div>
+        </div>
+        <div class="price-block__cell">
+          <div class="price-block__label">Low</div>
+          <div class="price-block__value" style="color: var(--text-2);">{{ money(latest.low, currency) }}</div>
+        </div>
+        <div class="price-block__cell">
+          <div class="price-block__label">Mid</div>
+          <div class="price-block__value" style="color: var(--text-2);">{{ money(latest.mid, currency) }}</div>
+        </div>
+        <div class="price-block__cell">
+          <div class="price-block__label">High</div>
+          <div class="price-block__value" style="color: var(--text-2);">{{ money(latest.high, currency) }}</div>
+        </div>
+        {% if points and points|length >= 2 %}
+          <div class="price-block__sub">
+            <span style="font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;">30d</span>
+            <div style="flex:1;">{{ sparkline(points, width=260, height=36) }}</div>
+            {% set delta = points[-1] - points[0] %}
+            <span class="num" style="color: {{ 'var(--success)' if delta >= 0 else 'var(--danger)' }};">
+              {{ '+' if delta >= 0 else '' }}{{ '%.2f'|format(delta) }}
+            </span>
+          </div>
+        {% endif %}
+        <div class="price-block__sub" style="border-top: none; padding-top: 0; margin-top: 0;">
+          <span class="muted">as of {{ latest.as_of }} · TCGCSV</span>
+        </div>
+      </div>
+    {% else %}
+      <p class="subtle" style="margin: 0;">No TCGplayer price mapping for this printing.</p>
+    {% endif %}
+  </section>
+
+  <section class="detail__section">
+    <h4>Your copies <span class="muted" style="font-family: var(--font-mono); font-weight: 500;">({{ entries|length }})</span></h4>
+    {% if entries %}
+      <div class="stack stack--tight">
+        {% for entry in entries %}{% include "partials/copy_row.html" %}{% endfor %}
+      </div>
+    {% else %}
+      <p class="subtle" style="margin: 0;">No copies of this printing in your collection.</p>
+    {% endif %}
+  </section>
+
+  <section class="detail__section">
+    <h4>Details</h4>
+    <dl class="kv">
+      <dt>Set</dt>
+      <dd>{{ card.set_name }} <span class="muted">({{ card.set_code|upper }})</span></dd>
+
+      {% if card.lang %}
+        <dt>Language</dt>
+        <dd class="mono" style="text-transform: uppercase; font-size: 12px;">{{ card.lang }}</dd>
+      {% endif %}
+
+      {% if color_identity %}
+        <dt>Identity</dt>
+        <dd class="cluster cluster--tight">
+          {{ color_dots(color_identity) }}
+          <span class="subtle" style="font-size: 12px;">{{ color_identity|join('·') or 'C' }}</span>
+        </dd>
+      {% endif %}
+
+      {% if legalities %}
+        <dt>Legalities</dt>
+        <dd>
+          <div class="legalities">
+            {% for fmt in ['standard','pioneer','modern','legacy','vintage','commander','pauper'] %}
+              {% set status = legalities.get(fmt) %}
+              {% if status %}
+                <span class="legality legality--{{ status }}" title="{{ fmt|capitalize }}: {{ status|replace('_',' ') }}">
+                  {{ fmt[:3]|capitalize }} · {{ status|replace('_',' ')|capitalize }}
+                </span>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </dd>
+      {% endif %}
+
+      <dt>Scryfall</dt>
+      <dd>
+        <a href="https://scryfall.com/card/{{ card.set_code }}/{{ card.collector_number }}"
+           target="_blank" rel="noopener" style="color: var(--gold-2);">View on Scryfall ↗</a>
+      </dd>
+
+      {% if card.tcgplayer_id %}
+        <dt>TCGplayer</dt>
+        <dd>
+          <a href="https://www.tcgplayer.com/product/{{ card.tcgplayer_id }}"
+             target="_blank" rel="noopener" style="color: var(--gold-2);">Buy on TCGplayer ↗</a>
+        </dd>
+      {% endif %}
+    </dl>
+  </section>
+</div>

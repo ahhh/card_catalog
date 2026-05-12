@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "results": [
+    {
+      "productId": 12345,
+      "lowPrice": 0.10,
+      "midPrice": 0.20,
+      "highPrice": 0.40,
+      "marketPrice": 0.25,
+      "directLowPrice": 0.18,
+      "subTypeName": "Normal"
+    },
+    {
+      "productId": 12345,
+      "lowPrice": 1.00,
+      "midPrice": 2.00,
+      "highPrice": 3.50,
+      "marketPrice": 2.10,
+      "directLowPrice": 1.50,
+      "subTypeName": "Foil"
+    },
+    {
+      "productId": 67890,
+      "lowPrice": null,
+      "midPrice": 0.50,
+      "highPrice": 1.00,
+      "marketPrice": null,
+      "directLowPrice": null,
+      "subTypeName": "Normal"
+    }
+  ]
+}

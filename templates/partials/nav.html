@@ -1,0 +1,27 @@
+<nav class="nav">
+  <a class="nav__brand" href="/">
+    <span class="nav__brand-mark" aria-hidden="true"></span>
+    <span>Card Catalog</span>
+    {% if owner_name %}
+      <span class="nav__brand-divider" aria-hidden="true"></span>
+      <span class="nav__owner">{{ owner_name }}</span>
+    {% endif %}
+  </a>
+  <div class="nav__menu">
+    <a class="nav__link" href="/"             {% if active_nav == 'dashboard'  %}aria-current="page"{% endif %}>Overview</a>
+    <a class="nav__link" href="/collection"   {% if active_nav == 'collection' %}aria-current="page"{% endif %}>Collection</a>
+    <a class="nav__link" href="/import"       {% if active_nav == 'import'     %}aria-current="page"{% endif %}>Import</a>
+    <a class="nav__link" href="/prices"       {% if active_nav == 'prices'     %}aria-current="page"{% endif %}>Prices</a>
+    <a class="nav__link" href="/archidekt"    {% if active_nav == 'archidekt'  %}aria-current="page"{% endif %}>Archidekt</a>
+  </div>
+  <span class="nav__spacer"></span>
+  <div class="nav__actions">
+    <a class="btn btn--ghost btn--sm" href="/settings" aria-label="Settings">
+      <svg class="icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+      </svg>
+      Settings
+    </a>
+  </div>
+</nav>

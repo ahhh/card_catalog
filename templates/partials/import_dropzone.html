@@ -1,0 +1,59 @@
+{# Initial dropzone state. Used on first page render and as the Cancel target. #}
+<div class="import-stage" data-stage="dropzone">
+  <form class="dropzone-shell"
+        hx-post="/import/preview"
+        hx-target="#import-content"
+        hx-swap="innerHTML"
+        hx-encoding="multipart/form-data"
+        hx-indicator="#dropzone-indicator">
+    <label class="dropzone dropzone--lg" id="manabox-dropzone">
+      <input type="file" name="file" accept=".csv,text/csv"
+             class="dropzone__input"
+             onchange="this.form.requestSubmit();"
+             aria-label="Choose Manabox CSV file"/>
+      <div class="dropzone__icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M24 32V12m0 0-8 8m8-8 8 8" />
+          <path d="M6 28v6a6 6 0 0 0 6 6h24a6 6 0 0 0 6-6v-6" />
+        </svg>
+      </div>
+      <div class="dropzone__title">Drop your Manabox CSV here</div>
+      <div class="dropzone__sub">
+        or <span class="dropzone__sub-link">click to browse</span>
+      </div>
+      <div class="dropzone__hint mono">.csv · exported from Manabox › Collection › Share</div>
+      <div id="dropzone-indicator" class="htmx-indicator dropzone__busy">
+        <div class="dropzone__spinner" aria-hidden="true"></div>
+        <span>Parsing your collection…</span>
+      </div>
+    </label>
+  </form>
+</div>
+
+<script>
+  // Tiny progressive-enhancement: drag-over glow + drop-to-submit.
+  (function () {
+    const root = document.getElementById("manabox-dropzone");
+    if (!root) return;
+    const input = root.querySelector("input[type=file]");
+    ["dragenter", "dragover"].forEach((ev) =>
+      root.addEventListener(ev, (e) => {
+        e.preventDefault();
+        root.classList.add("is-drag");
+      })
+    );
+    ["dragleave", "drop"].forEach((ev) =>
+      root.addEventListener(ev, (e) => {
+        if (ev === "dragleave" && root.contains(e.relatedTarget)) return;
+        root.classList.remove("is-drag");
+      })
+    );
+    root.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        input.files = e.dataTransfer.files;
+        input.form.requestSubmit();
+      }
+    });
+  })();
+</script>

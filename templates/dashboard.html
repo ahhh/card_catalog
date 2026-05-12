@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import card_tile, money %}
+{% block title %}{{ owner_name }} · Card Catalog{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__title">
+    <span class="eyebrow">Welcome back, {{ owner_name }}</span>
+    <h1>The Vault</h1>
+    <p class="subtle" style="margin: 4px 0 0; max-width: 56ch;">
+      A portable, self-contained record of every printing you own —
+      enriched daily, browsable like a binder, exportable to your tools of choice.
+    </p>
+  </div>
+  <div class="page-header__actions">
+    <a class="btn btn--secondary" href="/import">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v14m-6-6 6 6 6-6M5 21h14"/></svg>
+      Import CSV
+    </a>
+    <a class="btn btn--primary" href="/collection">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg>
+      Browse
+    </a>
+  </div>
+</div>
+
+<section class="dash-grid stagger">
+  <div class="panel">
+    <div class="panel__body stat">
+      <div class="stat__label">Total cards</div>
+      <div class="stat__value">{{ '{:,}'.format(total_qty) }}</div>
+      <div class="stat__delta">{{ '{:,}'.format(unique_printings) }} unique printings</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel__body stat">
+      <div class="stat__label">Unique cards (oracle)</div>
+      <div class="stat__value">{{ '{:,}'.format(unique_oracles) }}</div>
+      <div class="stat__delta">distinct card identities</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel__body stat">
+      <div class="stat__label">Estimated value</div>
+      <div class="stat__value stat__value--gold">${{ '{:,.0f}'.format(total_value) }}</div>
+      <div class="stat__delta">latest TCGCSV market prices</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel__body stat">
+      <div class="stat__label">Tracked sets</div>
+      <div class="stat__value">{{ rarity_counts|length if rarity_counts else 0 }}</div>
+      <div class="stat__delta">across your collection</div>
+    </div>
+  </div>
+</section>
+
+<div class="layout--split">
+  <aside class="stack">
+    <section class="panel">
+      <header class="panel__header">
+        <div class="panel__title">Color identity</div>
+      </header>
+      <div class="panel__body">
+        {% set total_color = (color_counts.values()|sum) or 1 %}
+        <div class="color-bars">
+          {% for code, label in [('W','White'),('U','Blue'),('B','Black'),('R','Red'),('G','Green'),('M','Multi'),('C','Colorless')] %}
+            {% set n = color_counts.get(code, 0) %}
+            {% set pct = (n / total_color * 100) if total_color else 0 %}
+            <div class="color-bar">
+              <span class="color-bar__label">{{ code }}</span>
+              <div class="color-bar__track">
+                <div class="color-bar__fill color-bar__fill--{{ code }}" style="width: {{ '%.1f'|format(pct) }}%;"></div>
+              </div>
+              <span class="color-bar__value">{{ '{:,}'.format(n) }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header class="panel__header">
+        <div class="panel__title">Rarity mix</div>
+      </header>
+      <div class="panel__body stack stack--tight">
+        {% for r in ['common','uncommon','rare','mythic'] %}
+          {% set n = rarity_counts.get(r, 0) %}
+          <div class="cluster" style="justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--ink-3);">
+            <span class="rarity rarity--{{ r }}"><span class="rarity__pip"></span>{{ r|capitalize }}</span>
+            <span class="num muted">{{ '{:,}'.format(n) }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </aside>
+
+  <div class="stack stack--loose">
+    <section class="panel">
+      <header class="panel__header">
+        <div>
+          <div class="panel__title">Recently added</div>
+          <div class="panel__subtitle">The last cards to land in your vault</div>
+        </div>
+        <a href="/collection" class="btn btn--ghost btn--sm">View all →</a>
+      </header>
+      <div class="panel__body">
+        {% if recently_added %}
+          <div class="recent-rail">
+            {% for entry in recently_added %}
+              {{ card_tile(entry) }}
+            {% endfor %}
+          </div>
+        {% else %}
+          {% with title="Your vault is empty",
+                  body="Start by importing a Manabox CSV. We'll match each row to Scryfall, dedupe across finishes and conditions, and have you browsing in seconds.",
+                  action_href="/import", action_label="Import your first CSV" %}
+            {% include "partials/empty_state.html" %}
+          {% endwith %}
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <header class="panel__header">
+        <div>
+          <div class="panel__title">Recent imports</div>
+          <div class="panel__subtitle">Audit trail for every CSV ingestion</div>
+        </div>
+      </header>
+      <div class="panel__body">
+        {% if recent_imports %}
+          <table class="table" style="background: transparent;">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>File</th>
+                <th class="right">Total</th>
+                <th class="right">Imported</th>
+                <th class="right">Unmatched</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for run in recent_imports %}
+                <tr>
+                  <td><span class="badge">{{ run.source }}</span></td>
+                  <td class="mono" style="font-size: 12px;">{{ run.filename or '—' }}</td>
+                  <td class="cell--num">{{ run.rows_total or 0 }}</td>
+                  <td class="cell--num" style="color: var(--success);">{{ run.rows_imported or 0 }}</td>
+                  <td class="cell--num" style="color: {% if (run.rows_unmatched or 0) > 0 %}var(--danger){% else %}var(--text-3){% endif %};">
+                    {{ run.rows_unmatched or 0 }}
+                  </td>
+                  <td class="muted" style="font-size: 12px;">
+                    {{ run.started_at.strftime('%b %d, %H:%M') if run.started_at else '' }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="subtle" style="margin: 0;">No imports yet. <a href="/import" style="color: var(--gold-2);">Run your first one →</a></p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

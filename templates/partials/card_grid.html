@@ -1,0 +1,29 @@
+{% from "partials/macros.html" import card_tile %}
+
+{% if result.entries %}
+  <div class="card-grid stagger fade-in">
+    {% for entry in result.entries %}
+      {{ card_tile(entry, money_value=result.latest_prices.get(entry.id), currency=currency) }}
+    {% endfor %}
+  </div>
+  {% include "partials/pagination.html" %}
+{% else %}
+  <div class="panel">
+    <div class="panel__body">
+      {% with title="No cards match these filters",
+              body="Try loosening a constraint, clearing colors, or widening the price range.",
+              action_href=None, action_label=None %}
+        {% include "partials/empty_state.html" %}
+      {% endwith %}
+      <div style="text-align: center; margin-top: -8px;">
+        <button type="button" class="btn btn--secondary btn--sm"
+                hx-get="/collection/table?view={{ view }}"
+                hx-target="#card-table"
+                hx-push-url="true"
+                onclick="const f = document.getElementById('filter-form'); if (f) { f.reset(); f.querySelectorAll('input[data-chip]').forEach(el => el.remove()); f.querySelectorAll('[data-chip-toggle][aria-pressed=\'true\']').forEach(el => el.setAttribute('aria-pressed','false')); }">
+          Reset all filters
+        </button>
+      </div>
+    </div>
+  </div>
+{% endif %}

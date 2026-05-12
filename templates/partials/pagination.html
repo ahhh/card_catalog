@@ -1,0 +1,58 @@
+{# Pagination control. Uses filter querystring + page=N, swaps the same #card-table region. #}
+{% if result.pages > 1 %}
+{% set qs = filt.querystring() %}
+{% set view_q = view if view is defined else 'grid' %}
+
+{% macro page_link(p, label=None, active=False, disabled=False) %}
+  {% set txt = label or p %}
+  {% if disabled %}
+    <span class="btn btn--ghost btn--sm" aria-disabled="true" style="opacity:0.4; pointer-events:none;">{{ txt }}</span>
+  {% elif active %}
+    <span class="btn btn--secondary btn--sm" aria-current="page"
+          style="background: rgba(var(--gold-glow), 0.14); border-color: rgba(var(--gold-glow), 0.4); color: var(--gold-3);">{{ txt }}</span>
+  {% else %}
+    {# Strip an existing page= so we can append cleanly. #}
+    {% set base_parts = [] %}
+    {% for part in qs.split('&') %}
+      {% if part and not part.startswith('page=') %}{% set _ = base_parts.append(part) %}{% endif %}
+    {% endfor %}
+    {% set base = base_parts|join('&') %}
+    <a class="btn btn--ghost btn--sm"
+       hx-get="/collection/table?view={{ view_q }}{% if base %}&{{ base }}{% endif %}&page={{ p }}"
+       hx-target="#card-table"
+       hx-include="#filter-form"
+       hx-push-url="true">{{ txt }}</a>
+  {% endif %}
+{% endmacro %}
+
+<nav class="pagination" aria-label="Pagination">
+  <div>
+    Page <span class="num">{{ result.page }}</span> of <span class="num">{{ result.pages }}</span>
+    <span class="muted"> · {{ '{:,}'.format(result.total) }} total</span>
+  </div>
+  <div class="pagination__nav">
+    {{ page_link(result.page - 1, '‹ Prev', disabled=(result.page <= 1)) }}
+
+    {# Build a page window with ellipses #}
+    {% set window = 2 %}
+    {% set pages_set = [] %}
+    {% set _ = pages_set.append(1) %}
+    {% set _ = pages_set.append(result.pages) %}
+    {% for p in range([1, result.page - window]|max, [result.pages, result.page + window]|min + 1) %}
+      {% if p not in pages_set %}{% set _ = pages_set.append(p) %}{% endif %}
+    {% endfor %}
+    {% set sorted_pages = pages_set|sort %}
+
+    {% set ns = namespace(prev=0) %}
+    {% for p in sorted_pages %}
+      {% if ns.prev and p - ns.prev > 1 %}
+        <span class="muted" style="padding: 0 4px;">…</span>
+      {% endif %}
+      {{ page_link(p, active=(p == result.page)) }}
+      {% set ns.prev = p %}
+    {% endfor %}
+
+    {{ page_link(result.page + 1, 'Next ›', disabled=(result.page >= result.pages)) }}
+  </div>
+</nav>
+{% endif %}

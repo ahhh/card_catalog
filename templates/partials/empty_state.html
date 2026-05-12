@@ -1,0 +1,15 @@
+<div class="empty">
+  <div class="empty__icon">
+    {% block empty_icon %}
+      <svg class="icon" viewBox="0 0 24 24" style="width:24px;height:24px;">
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="M8 8h8M8 12h8M8 16h5" />
+      </svg>
+    {% endblock %}
+  </div>
+  <div class="empty__title">{{ title or "Nothing here yet" }}</div>
+  <p class="empty__body">{{ body }}</p>
+  {% if action_href and action_label %}
+    <a class="btn btn--primary" href="{{ action_href }}">{{ action_label }}</a>
+  {% endif %}
+</div>

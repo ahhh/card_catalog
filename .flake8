@@ -1,0 +1,22 @@
+[flake8]
+max-line-length = 100
+extend-exclude =
+    .venv,
+    venv,
+    alembic/versions,
+    data,
+    .uv,
+    __pycache__,
+    build,
+    dist
+# W503: line break before binary operator — PEP 8 reversed; W504 is preferred.
+# E203: whitespace before ':' — conflicts with Black/Ruff slice formatting.
+# E501: line too long — already enforced via max-line-length above; this avoids double-counting.
+extend-ignore = W503,E203
+per-file-ignores =
+    # Migrations are generated and can be terse; allow long lines and unused imports.
+    alembic/env.py:E402
+    # __init__.py files often re-export.
+    */__init__.py:F401,F403
+    # Test files can have long lines for readable assertions.
+    tests/*:E501

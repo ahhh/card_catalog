@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import money %}
+{% block title %}Collection · Card Catalog{% endblock %}
+
+{% block content %}
+<style>
+  /* Page-local refinements; design tokens live in app.css. */
+  .col-header__stats {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-3);
+    font-feature-settings: "tnum";
+  }
+  .col-header__stats b {
+    color: var(--text-1);
+    font-weight: 500;
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 30;
+  }
+  .col-header__stats .gold {
+    color: var(--gold-3);
+    font-weight: 500;
+    text-shadow: 0 0 24px rgba(var(--gold-glow), 0.18);
+  }
+  .col-header__stats .dot {
+    color: var(--text-4);
+  }
+
+  .filter-form .sidebar__group + .sidebar__group {
+    border-top: 1px solid var(--ink-3);
+    padding-top: 16px;
+  }
+  .filter-form .input,
+  .filter-form .select {
+    font-size: 12.5px;
+    padding: 7px 10px;
+  }
+  .filter-form .search .input {
+    padding-left: 36px;
+    font-size: 13.5px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--text-2);
+  }
+  .reset-link {
+    align-self: flex-start;
+    color: var(--text-3);
+    font-size: 12px;
+    border-bottom: 1px dashed var(--ink-5);
+    padding-bottom: 1px;
+    transition: color var(--d-fast), border-color var(--d-fast);
+    cursor: pointer;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+  .reset-link:hover {
+    color: var(--gold-3);
+    border-color: var(--gold-2);
+  }
+
+  .set-select {
+    max-height: 180px;
+    overflow-y: auto;
+    background: var(--ink-2);
+    border: 1px solid var(--ink-4);
+    border-radius: var(--r-sm);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .set-select label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 4px;
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-2);
+    transition: background var(--d-fast);
+  }
+  .set-select label:hover {
+    background: var(--ink-3);
+    color: var(--text-1);
+  }
+  .set-select label .count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-4);
+  }
+
+  .toolbar__sort {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+  .toolbar__sort .select {
+    padding: 6px 28px 6px 10px;
+    font-size: 12.5px;
+    background-position: calc(100% - 12px) 13px, calc(100% - 7px) 13px;
+  }
+
+  .filter-summary {
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .filter-summary .badge {
+    background: var(--ink-2);
+  }
+
+  .htmx-indicator--inline {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--ink-4);
+    border-top-color: var(--gold-1);
+    border-radius: 50%;
+    animation: spin 600ms linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<div class="page-header">
+  <div class="page-header__title">
+    <span class="eyebrow">Browse</span>
+    <h1>Collection</h1>
+    <div class="col-header__stats">
+      <span><b>{{ '{:,}'.format(result.total) }}</b> entr{{ 'y' if result.total == 1 else 'ies' }}</span>
+      <span class="dot">·</span>
+      <span><b>{{ '{:,}'.format(result.total_quantity) }}</b> cards</span>
+      <span class="dot">·</span>
+      <span class="gold">${{ '{:,.2f}'.format(result.total_value) }}</span>
+      <span class="subtle">at latest market</span>
+    </div>
+  </div>
+  <div class="page-header__actions">
+    <a class="btn btn--secondary" href="/import">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v14m-6-6 6 6 6-6M5 21h14"/></svg>
+      Import CSV
+    </a>
+  </div>
+</div>
+
+{% if total_in_db == 0 %}
+  {% with title="Your vault is empty",
+          body="Import a Manabox CSV to start building your collection. Each row is matched to Scryfall, deduped across finishes and conditions, and ready to browse in seconds.",
+          action_href="/import", action_label="Import a CSV" %}
+    {% include "partials/empty_state.html" %}
+  {% endwith %}
+{% else %}
+
+<div class="layout--split">
+  {% include "partials/filter_panel.html" %}
+
+  <div class="stack" style="min-width: 0;">
+    <div class="toolbar">
+      <span class="toolbar__count" id="result-count">
+        {{ '{:,}'.format(result.total) }} card{{ '' if result.total == 1 else 's' }} matching
+        <span class="htmx-indicator htmx-indicator--inline" aria-hidden="true"></span>
+      </span>
+      <span class="spacer"></span>
+
+      <label class="toolbar__sort">
+        Sort
+        <select class="select" name="sort"
+                form="filter-form"
+                hx-get="/collection/table"
+                hx-target="#card-table"
+                hx-include="#filter-form"
+                hx-push-url="true"
+                hx-trigger="change">
+          {% set current_sort = filt.sort or 'name' %}
+          {% for value, label in [
+              ('name', 'Name (A–Z)'),
+              ('-name', 'Name (Z–A)'),
+              ('-price', 'Price (high → low)'),
+              ('price', 'Price (low → high)'),
+              ('-quantity', 'Quantity (most)'),
+              ('quantity', 'Quantity (least)'),
+              ('-rarity', 'Rarity (mythic first)'),
+              ('rarity', 'Rarity (common first)'),
+              ('cmc', 'CMC (low → high)'),
+              ('-cmc', 'CMC (high → low)'),
+              ('set_code', 'Set (A–Z)'),
+              ('-created_at', 'Recently added'),
+          ] %}
+            <option value="{{ value }}" {% if value == current_sort %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div class="tabs" role="tablist" aria-label="View mode">
+        <a class="tab" role="tab" id="view-tab-grid"
+           aria-selected="{{ 'true' if view == 'grid' else 'false' }}"
+           onclick="document.getElementById('filter-view').value='grid'; this.setAttribute('aria-selected','true'); document.getElementById('view-tab-list').setAttribute('aria-selected','false');"
+           hx-get="/collection/table"
+           hx-target="#card-table"
+           hx-include="#filter-form"
+           hx-push-url="true">Grid</a>
+        <a class="tab" role="tab" id="view-tab-list"
+           aria-selected="{{ 'true' if view == 'list' else 'false' }}"
+           onclick="document.getElementById('filter-view').value='list'; this.setAttribute('aria-selected','true'); document.getElementById('view-tab-grid').setAttribute('aria-selected','false');"
+           hx-get="/collection/table"
+           hx-target="#card-table"
+           hx-include="#filter-form"
+           hx-push-url="true">List</a>
+      </div>
+    </div>
+
+    <div id="card-table">
+      {% include ("partials/card_grid.html" if view == "grid" else "partials/card_table.html") %}
+    </div>
+  </div>
+</div>
+
+{% include "partials/bulk_bar.html" %}
+
+{% endif %}
+{% endblock %}

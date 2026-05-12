@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.python-version
+
+# uv
+.uv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Local data
+data/catalog.db
+data/catalog.db-journal
+data/catalog.db-wal
+data/catalog.db-shm
+data/images/
+data/bulk/
+
+# Env
+.env
+.env.local

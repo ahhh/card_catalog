@@ -1,0 +1,275 @@
+{% from "partials/macros.html" import money %}
+
+{% if error %}
+  <div class="panel panel--quiet fade-in" role="alert"
+       style="border-color: rgba(227, 96, 73, 0.35);">
+    <div class="panel__body cluster" style="gap: 14px; align-items: flex-start;">
+      <span class="badge badge--danger" style="flex-shrink: 0;">
+        <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 8v5M12 16h.01"/>
+        </svg>
+        Couldn't reconcile
+      </span>
+      <div style="flex:1; min-width: 0;">
+        <div style="font-weight: 500; color: var(--text-1); margin-bottom: 4px;">
+          Archidekt didn't return a deck.
+        </div>
+        <p class="subtle" style="margin: 0; font-size: 13px;">{{ error }}</p>
+      </div>
+    </div>
+  </div>
+{% else %}
+  {% set deck = report.deck %}
+  {% set pct = completion_pct %}
+
+  <style>
+    .deck-card {
+      background: linear-gradient(180deg, var(--ink-2), var(--ink-1));
+      border: 1px solid var(--ink-4);
+      border-radius: var(--r-lg);
+      padding: 20px 22px;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .deck-card__top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .deck-card__title {
+      font-family: var(--font-display);
+      font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 1;
+      font-size: clamp(22px, 2.4vw, 28px);
+      font-weight: 400;
+      letter-spacing: -0.022em;
+      line-height: 1.05;
+      color: var(--text-1);
+      margin: 0;
+    }
+    .deck-card__meta {
+      color: var(--text-3); font-size: 12.5px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .deck-card__link {
+      display: inline-flex; align-items: center; gap: 4px;
+      color: var(--gold-2);
+      transition: color var(--d-fast);
+    }
+    .deck-card__link:hover { color: var(--gold-3); }
+
+    .deck-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 18px;
+    }
+    .deck-stats .stat__value { font-size: clamp(24px, 2.4vw, 32px); }
+
+    .reconcile-controls {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .reconcile-list {
+      border: 1px solid var(--ink-4);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      background: var(--ink-1);
+    }
+    .reconcile-row__thumb {
+      width: 40px; height: 56px;
+      border-radius: 4px;
+      background: var(--ink-3);
+      background-size: cover; background-position: center top;
+      box-shadow: var(--shadow-1);
+      border: 1px solid var(--ink-4);
+      flex-shrink: 0;
+    }
+    .reconcile-row__main {
+      display: flex; flex-direction: column; gap: 3px; min-width: 0;
+    }
+    .reconcile-row__name {
+      font-family: var(--font-display);
+      font-variation-settings: "opsz" 30;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-1);
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .reconcile-row__sub {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11.5px; color: var(--text-3); min-width: 0;
+    }
+    .reconcile-row__sub .badge { padding: 1px 7px; font-size: 10.5px; }
+    .reconcile-row__num {
+      font-family: var(--font-mono);
+      font-feature-settings: "tnum";
+      font-size: 13px;
+      text-align: right;
+      color: var(--text-2);
+    }
+    .reconcile-row__num--missing { color: var(--danger); font-weight: 600; }
+    .reconcile-row__num--complete { color: var(--success); }
+
+    .reconcile-row__head {
+      display: grid;
+      grid-template-columns: 40px 60px 1fr 80px 80px 80px;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--ink-2);
+      border-bottom: 1px solid var(--ink-4);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-3);
+    }
+    .reconcile-row__head .right { text-align: right; }
+
+    .reconcile-empty {
+      padding: 28px 14px; text-align: center;
+      color: var(--text-3); font-size: 13px;
+    }
+
+    /* Tabs filter the rows below via data-flag matching. */
+    .reconcile-list[data-filter="missing"] .reconcile-row:not(.reconcile-row--missing) { display: none; }
+    .reconcile-list[data-filter="complete"] .reconcile-row.reconcile-row--missing { display: none; }
+
+    @media (max-width: 720px) {
+      .reconcile-row, .reconcile-row__head {
+        grid-template-columns: 40px 1fr 60px 60px;
+      }
+      .reconcile-row__head .col-thumb,
+      .reconcile-row .reconcile-row__thumb-cell { display: none; }
+    }
+  </style>
+
+  <article class="fade-in" style="display: flex; flex-direction: column; gap: 18px;">
+
+    {# ----- Deck header card ----- #}
+    <header class="deck-card">
+      <div class="deck-card__top">
+        <div style="min-width: 0;">
+          <h2 class="deck-card__title">{{ deck.name }}</h2>
+          <div class="deck-card__meta">
+            {% if deck.owner %}
+              <span>by <span style="color: var(--text-2);">{{ deck.owner }}</span></span>
+              <span style="color: var(--ink-5);">·</span>
+            {% endif %}
+            <a class="deck-card__link" href="{{ deck.url }}" target="_blank" rel="noopener">
+              archidekt.com/decks/{{ deck.id }}
+              <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;" aria-hidden="true">
+                <path d="M7 17 17 7M9 7h8v8"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          {% if report.total_missing == 0 %}
+            <span class="badge badge--success">Complete</span>
+          {% elif report.total_owned == 0 %}
+            <span class="badge badge--danger">Nothing owned yet</span>
+          {% else %}
+            <span class="badge badge--warn">{{ '%.0f'|format(pct) }}% complete</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="deck-stats">
+        <div class="stat">
+          <div class="stat__label">Owned</div>
+          <div class="stat__value">
+            <span class="num">{{ report.total_owned }}</span>
+            <span class="subtle" style="font-family: var(--font-mono); font-size: 16px;">/ {{ report.total_needed }}</span>
+          </div>
+          <div class="stat__delta">across {{ report.rows|length }} unique cards</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Missing</div>
+          <div class="stat__value {% if report.total_missing > 0 %}stat__value--gold{% endif %}"
+               style="{% if report.total_missing > 0 %}color: var(--danger); text-shadow: 0 0 30px rgba(227, 96, 73, 0.25);{% endif %}">
+            <span class="num">{{ report.total_missing }}</span>
+          </div>
+          <div class="stat__delta">copies still needed</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Est. cost to complete</div>
+          <div class="stat__value stat__value--gold">
+            {% if report.est_completion_cost is none %}
+              <span class="subtle" style="font-family: var(--font-display); font-size: inherit;">—</span>
+            {% else %}
+              {{ money(report.est_completion_cost) }}
+            {% endif %}
+          </div>
+          <div class="stat__delta">
+            {% if report.est_completion_cost is none %}
+              No TCG price data yet
+            {% else %}
+              cheapest unowned printing × missing qty
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="progress" role="progressbar"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct }}">
+          <div class="progress__bar" style="width: {{ pct }}%;"></div>
+        </div>
+      </div>
+    </header>
+
+    {# ----- Tab controls ----- #}
+    <div class="reconcile-controls">
+      <div class="tabs" role="tablist" aria-label="Filter cards" id="reconcile-tabs">
+        <button class="tab" role="tab" aria-selected="true"  data-tab="all">All <span class="subtle num">· {{ report.rows|length }}</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="missing">Missing <span class="subtle num">· {{ report.rows|selectattr('missing_qty','gt',0)|list|length }}</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="complete">Complete <span class="subtle num">· {{ report.rows|rejectattr('missing_qty','gt',0)|list|length }}</span></button>
+      </div>
+      <span class="subtle" style="font-size: 12px;">
+        Sorted by biggest gap first.
+      </span>
+    </div>
+
+    {# ----- The row list ----- #}
+    <div class="reconcile-list" id="reconcile-list" data-filter="all">
+      <div class="reconcile-row__head" role="row">
+        <span class="col-thumb"></span>
+        <span></span>
+        <span>Card</span>
+        <span class="right">Need</span>
+        <span class="right">Owned</span>
+        <span class="right">Missing</span>
+      </div>
+
+      {% if report.rows %}
+        {% for row in report.rows %}
+          {% include "partials/archidekt_reconcile_row.html" %}
+        {% endfor %}
+      {% else %}
+        <div class="reconcile-empty">This deck has no cards to reconcile.</div>
+      {% endif %}
+    </div>
+
+  </article>
+
+  <script>
+    (function () {
+      // Tabbed filter. Pure DOM, no extra deps.
+      var tabs = document.getElementById("reconcile-tabs");
+      var list = document.getElementById("reconcile-list");
+      if (!tabs || !list) return;
+      tabs.querySelectorAll(".tab").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          tabs.querySelectorAll(".tab").forEach(function (b) {
+            b.setAttribute("aria-selected", b === btn ? "true" : "false");
+          });
+          list.setAttribute("data-filter", btn.getAttribute("data-tab"));
+        });
+      });
+    })();
+  </script>
+{% endif %}

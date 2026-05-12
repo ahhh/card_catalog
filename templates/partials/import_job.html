@@ -1,0 +1,98 @@
+{# Import-commit job state. Single root element that polls itself via HTMX.
+   On terminal state, polling stops and a summary card is rendered. #}
+<div id="import-job-{{ job.id }}"
+     {% if not job.is_terminal %}
+       hx-get="{{ poll_url }}"
+       hx-trigger="every 800ms"
+       hx-swap="outerHTML"
+     {% endif %}>
+  <div class="stack stack--tight">
+    <div class="cluster" style="justify-content: space-between;">
+      <div class="cluster cluster--tight">
+        {% if job.status.value == 'running' or job.status.value == 'pending' %}
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--gold-1); animation: spin 1.4s linear infinite;">
+            <path d="M21 12a9 9 0 1 1-6.2-8.55" />
+          </svg>
+        {% elif job.status.value == 'completed' %}
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--success);">
+            <path d="M5 12l5 5L20 7" />
+          </svg>
+        {% elif job.status.value == 'failed' %}
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--danger);">
+            <circle cx="12" cy="12" r="9" /><path d="M9 9l6 6M15 9l-6 6" />
+          </svg>
+        {% endif %}
+        <span style="font-weight: 500; color: var(--text-1);">{{ job.label }}</span>
+      </div>
+      <span class="num muted" style="font-size: 12px;">
+        {% if job.total %}{{ job.done }} / {{ job.total }}{% else %}{{ job.done }}{% endif %}
+        · {{ job.progress_pct }}%
+      </span>
+    </div>
+    <div class="progress" aria-label="Progress">
+      <div class="progress__bar" style="width: {{ job.progress_pct }}%;"></div>
+    </div>
+    {% if job.detail %}
+      <p class="subtle" style="font-size: 12px; margin: 4px 0 0;">{{ job.detail }}</p>
+    {% endif %}
+    {% if job.error %}
+      <p style="color: var(--danger); font-size: 12.5px; margin: 4px 0 0;">{{ job.error }}</p>
+    {% endif %}
+  </div>
+
+  {% if job.is_terminal %}
+    {% if job.status.value == 'completed' %}
+      <div class="commit-summary stack stack--loose" style="margin-top: 22px;">
+        <div class="commit-summary__stats">
+          <div class="commit-summary__stat">
+            <div class="commit-summary__label">New</div>
+            <div class="commit-summary__value num">{{ extras.inserted or 0 }}</div>
+          </div>
+          <div class="commit-summary__stat">
+            <div class="commit-summary__label">Increments</div>
+            <div class="commit-summary__value num">{{ extras.incremented or 0 }}</div>
+          </div>
+          <div class="commit-summary__stat">
+            <div class="commit-summary__label">Skipped</div>
+            <div class="commit-summary__value num">{{ extras.unmatched or 0 }}</div>
+          </div>
+        </div>
+        <p class="subtle" style="margin: 0;">
+          Audit record #{{ extras.import_run_id }} written.
+          Every row is reversible from the collection view.
+        </p>
+        <div class="cluster" style="justify-content: flex-end;">
+          <button type="button" class="btn btn--ghost"
+                  hx-get="/import/dropzone"
+                  hx-target="#import-content"
+                  hx-swap="innerHTML">
+            Import another
+          </button>
+          <a class="btn btn--primary" href="/collection">
+            View collection
+            <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+    {% else %}
+      <div class="callout callout--danger" style="margin-top: 18px;">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+        <div class="stack stack--tight">
+          <div class="callout__title">Import failed</div>
+          <p style="margin: 0;">{{ job.error or 'Unknown error — please try again.' }}</p>
+          <div class="cluster" style="justify-content: flex-end;">
+            <button type="button" class="btn btn--secondary"
+                    hx-get="/import/dropzone"
+                    hx-target="#import-content"
+                    hx-swap="innerHTML">
+              Start over
+            </button>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>

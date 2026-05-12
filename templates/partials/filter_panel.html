@@ -1,0 +1,172 @@
+{# Sidebar filter form. All inputs trigger a debounced HTMX GET against /collection/table. #}
+<aside class="sidebar">
+  <form id="filter-form" class="filter-form stack"
+        hx-get="/collection/table"
+        hx-target="#card-table"
+        hx-trigger="filter-change, change delay:120ms from:select, change delay:120ms from:input[type=checkbox], input changed delay:300ms from:input[type=text], input changed delay:300ms from:input[type=number], input changed delay:300ms from:input[type=search]"
+        hx-push-url="true"
+        hx-include="this"
+        hx-indicator=".htmx-indicator--inline">
+
+    {# Current view — the view-toggle tabs update this hidden input before swap. #}
+    <input type="hidden" name="view" id="filter-view" value="{{ view }}" />
+
+    <div class="sidebar__group">
+      <label class="search" style="margin-bottom: 4px;">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <input class="input" type="search" name="q"
+               value="{{ filt.q or '' }}"
+               placeholder="Search name, type, text…"
+               data-global-search
+               autocomplete="off" />
+      </label>
+      <button type="button" class="reset-link"
+              hx-get="/collection/table?view={{ view }}"
+              hx-target="#card-table"
+              hx-push-url="true"
+              onclick="this.closest('form').reset(); this.closest('form').querySelectorAll('input[data-chip]').forEach(el => el.remove()); this.closest('form').querySelectorAll('[data-chip-toggle][aria-pressed=\'true\']').forEach(el => el.setAttribute('aria-pressed','false'));">
+        Reset filters
+      </button>
+    </div>
+
+    <div class="sidebar__group">
+      <div class="sidebar__group-label">Colors</div>
+      <div class="chip-row" role="group" aria-label="Color filter">
+        {% set active_colors = filt.colors|map('upper')|list %}
+        {% for code, label in [('W','W'),('U','U'),('B','B'),('R','R'),('G','G')] %}
+          <button type="button"
+                  class="chip chip--{{ code|lower }}"
+                  data-chip-toggle data-name="colors" data-value="{{ code }}"
+                  aria-pressed="{{ 'true' if code in active_colors else 'false' }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      <div class="cluster cluster--tight" style="font-size: 11.5px;">
+        {% for value, label in [('includes', 'Includes'), ('exact', 'Exact'), ('identity', 'Identity')] %}
+          <label class="cluster cluster--tight" style="cursor: pointer; color: var(--text-3);">
+            <input type="radio" name="colors_mode" value="{{ value }}"
+                   {% if (filt.colors_mode or 'includes') == value %}checked{% endif %}
+                   style="margin: 0;" />
+            <span>{{ label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="sidebar__group">
+      <div class="sidebar__group-label">Rarity</div>
+      <div class="chip-row">
+        {% for r in ['common','uncommon','rare','mythic'] %}
+          <button type="button" class="chip"
+                  data-chip-toggle data-name="rarity" data-value="{{ r }}"
+                  aria-pressed="{{ 'true' if r in filt.rarity else 'false' }}">
+            <span class="rarity__pip" style="background: var(--rarity-{{ {'common':'c','uncommon':'u','rare':'r','mythic':'m'}[r] }}); width: 6px; height: 6px; box-shadow: 0 0 4px currentColor;"></span>
+            <span style="text-transform: capitalize;">{{ r }}</span>
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="sidebar__group">
+      <div class="sidebar__group-label">Finish</div>
+      <div class="chip-row">
+        {% for f, label in [('nonfoil','Non-foil'),('foil','Foil'),('etched','Etched')] %}
+          <button type="button" class="chip"
+                  data-chip-toggle data-name="finish" data-value="{{ f }}"
+                  aria-pressed="{{ 'true' if f in filt.finish else 'false' }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="sidebar__group">
+      <div class="sidebar__group-label">Condition</div>
+      <div class="chip-row">
+        {% for c in ['NM','LP','MP','HP','DMG'] %}
+          <button type="button" class="chip"
+                  data-chip-toggle data-name="condition" data-value="{{ c }}"
+                  aria-pressed="{{ 'true' if c in filt.condition else 'false' }}">{{ c }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if sets %}
+      <div class="sidebar__group">
+        <div class="sidebar__group-label">
+          Set
+          <span class="muted" style="font-size: 10px; letter-spacing: 0.06em; text-transform: none;">{{ sets|length }} in vault</span>
+        </div>
+        <div class="set-select">
+          {% for code, name, count in sets[:30] %}
+            <label>
+              <input type="checkbox" class="check" name="set_code" value="{{ code }}"
+                     {% if code in filt.set_code %}checked{% endif %} />
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ name }}</span>
+              <span class="count">{{ count }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="sidebar__group">
+      <div class="sidebar__group-label">CMC</div>
+      <div class="range-pair">
+        <input class="input" type="number" inputmode="decimal" step="0.5" min="0" max="20"
+               name="cmc_min" placeholder="0" value="{{ filt.cmc_min if filt.cmc_min is not none else '' }}" />
+        <span>to</span>
+        <input class="input" type="number" inputmode="decimal" step="0.5" min="0" max="20"
+               name="cmc_max" placeholder="∞" value="{{ filt.cmc_max if filt.cmc_max is not none else '' }}" />
+      </div>
+    </div>
+
+    <div class="sidebar__group">
+      <div class="sidebar__group-label">Price (USD)</div>
+      <div class="range-pair">
+        <input class="input" type="number" inputmode="decimal" step="0.5" min="0"
+               name="price_min" placeholder="$0" value="{{ filt.price_min if filt.price_min is not none else '' }}" />
+        <span>to</span>
+        <input class="input" type="number" inputmode="decimal" step="0.5" min="0"
+               name="price_max" placeholder="$∞" value="{{ filt.price_max if filt.price_max is not none else '' }}" />
+      </div>
+    </div>
+
+    <div class="sidebar__group">
+      <div class="sidebar__group-label">Quantity</div>
+      <div class="range-pair">
+        <input class="input" type="number" inputmode="numeric" step="1" min="0"
+               name="qty_min" placeholder="1" value="{{ filt.qty_min if filt.qty_min is not none else '' }}" />
+        <span>to</span>
+        <input class="input" type="number" inputmode="numeric" step="1" min="0"
+               name="qty_max" placeholder="∞" value="{{ filt.qty_max if filt.qty_max is not none else '' }}" />
+      </div>
+    </div>
+
+    <div class="sidebar__group">
+      <div class="toggle-row">
+        <span>For trade only</span>
+        <label class="toggle">
+          <input type="checkbox" name="for_trade" value="1" {% if filt.for_trade %}checked{% endif %} />
+          <span class="toggle__track"></span>
+        </label>
+      </div>
+    </div>
+
+    {% if tags_all %}
+      <div class="sidebar__group">
+        <div class="sidebar__group-label">Tags</div>
+        <div class="chip-row">
+          {% for tag in tags_all %}
+            <button type="button" class="chip"
+                    data-chip-toggle data-name="tags" data-value="{{ tag.id }}"
+                    aria-pressed="{{ 'true' if tag.id in filt.tags else 'false' }}">
+              {{ tag.name }}
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+  </form>
+</aside>

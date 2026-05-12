@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ card.name }} · Card Catalog{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header__title">
+    <span class="eyebrow">Card detail</span>
+    <h1 style="font-size: clamp(24px, 2.6vw, 32px);">{{ card.name }}</h1>
+  </div>
+  <div class="page-header__actions">
+    <a class="btn btn--ghost btn--sm" href="/collection">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>
+      Back to collection
+    </a>
+  </div>
+</div>
+
+<div class="panel" style="overflow: hidden;">
+  {% include "partials/card_detail_inner.html" %}
+</div>
+{% endblock %}

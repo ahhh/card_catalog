@@ -1,0 +1,129 @@
+{# Shared Jinja macros: mana cost rendering, rarity pip, color dots, price formatting. #}
+
+{%- macro mana_cost(cost) -%}
+  {%- if not cost -%}{%- else -%}
+    {%- set tokens = cost.replace('{', '|{').split('|') -%}
+    <span class="mana-row">
+      {%- for token in tokens if token -%}
+        {%- set t = token.replace('{', '').replace('}', '').strip() -%}
+        {%- if t -%}
+          {%- if t == 'W' -%}<span class="mana mana--w">W</span>
+          {%- elif t == 'U' -%}<span class="mana mana--u">U</span>
+          {%- elif t == 'B' -%}<span class="mana mana--b">B</span>
+          {%- elif t == 'R' -%}<span class="mana mana--r">R</span>
+          {%- elif t == 'G' -%}<span class="mana mana--g">G</span>
+          {%- elif t == 'C' -%}<span class="mana mana--c">C</span>
+          {%- elif t == 'X' -%}<span class="mana mana--x">X</span>
+          {%- elif t.isdigit() -%}<span class="mana mana--generic">{{ t }}</span>
+          {%- else -%}<span class="mana mana--generic">{{ t }}</span>
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    </span>
+  {%- endif -%}
+{%- endmacro -%}
+
+
+{%- macro rarity_pip(rarity) -%}
+  {%- set r = (rarity or '').lower() -%}
+  <span class="rarity rarity--{{ r if r in ['common','uncommon','rare','mythic','special'] else 'common' }}">
+    <span class="rarity__pip"></span><span>{{ r|capitalize }}</span>
+  </span>
+{%- endmacro -%}
+
+
+{%- macro color_dots(colors_list) -%}
+  {%- if colors_list -%}
+    {%- if colors_list|length >= 2 -%}
+      <span class="color-dot color-dot--M" title="Multicolor"></span>
+    {%- else -%}
+      {%- for c in colors_list -%}<span class="color-dot color-dot--{{ c }}" title="{{ c }}"></span>{%- endfor -%}
+    {%- endif -%}
+  {%- else -%}
+    <span class="color-dot color-dot--C" title="Colorless"></span>
+  {%- endif -%}
+{%- endmacro -%}
+
+
+{%- macro money(value, currency='USD') -%}
+  {%- if value is none -%}—{%- else -%}
+    {%- set sym = {'USD':'$', 'EUR':'€', 'GBP':'£'}.get(currency, '$') -%}
+    <span class="num">{{ sym }}{{ '%.2f'|format(value) }}</span>
+  {%- endif -%}
+{%- endmacro -%}
+
+
+{%- macro foil_indicator(finish) -%}
+  {%- if finish == 'foil' -%}
+    <span class="badge badge--gold" title="Foil">✦ Foil</span>
+  {%- elif finish == 'etched' -%}
+    <span class="badge badge--gold" title="Etched Foil">✦ Etched</span>
+  {%- endif -%}
+{%- endmacro -%}
+
+
+{%- macro condition_badge(condition) -%}
+  {%- set c = condition or 'NM' -%}
+  {%- set tone = {'NM':'success', 'LP':'success', 'MP':'warn', 'HP':'warn', 'DMG':'danger'}.get(c, 'success') -%}
+  <span class="badge badge--{{ tone }}">{{ c }}</span>
+{%- endmacro -%}
+
+
+{%- macro card_tile(entry, money_value=None, currency='USD') -%}
+{# entry: CollectionEntry with eager-loaded .card #}
+{%- set card = entry.card -%}
+<a class="card-tile fade-in" href="/cards/{{ card.scryfall_id }}"
+   hx-get="/cards/{{ card.scryfall_id }}?slideover=1"
+   hx-target="#slideover-mount"
+   hx-swap="innerHTML"
+   hx-push-url="false">
+  <div class="card-tile__art">
+    {% if entry.finish in ('foil', 'etched') %}
+      <span class="card-tile__foil" aria-hidden="true"></span>
+    {% endif %}
+    <span class="card-tile__qty">×{{ entry.quantity }}</span>
+    {% if card.image_normal_uri %}
+      <img src="{{ card.image_normal_uri }}" alt="{{ card.name }}" loading="lazy" />
+    {% else %}
+      <div class="card-tile__placeholder">{{ card.name[0] if card.name else '?' }}</div>
+    {% endif %}
+  </div>
+  <div class="card-tile__meta">
+    <div class="card-tile__name">{{ card.name }}</div>
+    <div class="card-tile__sub">
+      <span>{{ card.set_code|upper }} · {{ card.collector_number }}</span>
+      {% if money_value is not none %}
+        <span class="card-tile__price">${{ '%.2f'|format(money_value) }}</span>
+      {% endif %}
+    </div>
+  </div>
+</a>
+{%- endmacro -%}
+
+
+{%- macro sparkline(points, width=120, height=32) -%}
+{# points: list of floats (oldest -> newest). Renders a tiny SVG path. #}
+{%- if points and points|length >= 2 -%}
+  {%- set lo = points|min -%}
+  {%- set hi = points|max -%}
+  {%- set span = (hi - lo) if (hi - lo) > 0 else 1 -%}
+  {%- set step = (width - 4) / (points|length - 1) -%}
+  {%- set coords = [] -%}
+  {%- for v in points -%}
+    {%- set x = 2 + loop.index0 * step -%}
+    {%- set y = (height - 4) - ((v - lo) / span) * (height - 8) + 2 -%}
+    {%- set _ = coords.append('%.1f,%.1f'|format(x, y)) -%}
+  {%- endfor -%}
+  <svg class="sparkline" viewBox="0 0 {{ width }} {{ height }}" preserveAspectRatio="none" aria-hidden="true">
+    <path class="sparkline__fill" d="M{{ coords[0] }} L{{ coords|join(' ') }} L{{ '%.1f'|format(width - 2) }},{{ height }} L2,{{ height }} Z" />
+    <path class="sparkline__path" d="M{{ coords|join(' L') }}" />
+    {%- set last = coords[-1].split(',') -%}
+    <circle class="sparkline__dot" cx="{{ last[0] }}" cy="{{ last[1] }}" r="2" />
+  </svg>
+{%- else -%}
+  <svg class="sparkline" viewBox="0 0 {{ width }} {{ height }}" aria-hidden="true">
+    <line x1="2" x2="{{ width - 2 }}" y1="{{ height/2 }}" y2="{{ height/2 }}"
+          stroke="var(--ink-4)" stroke-width="1" stroke-dasharray="2 3" />
+  </svg>
+{%- endif -%}
+{%- endmacro -%}

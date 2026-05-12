@@ -1,0 +1,233 @@
+{# Verdict + actions UI rendered after CSV parse, and the committing/done states. #}
+{% from "partials/macros.html" import foil_indicator, condition_badge %}
+
+{% if committing and job is defined %}
+  {# Mid-commit state. The job-status partial polls itself. #}
+  <section class="panel commit-progress">
+    <header class="panel__header">
+      <div>
+        <div class="panel__title">Writing your collection</div>
+        <div class="panel__subtitle">One transaction. Cancel-safe up to commit.</div>
+      </div>
+    </header>
+    <div class="panel__body">
+      {% include "partials/import_job.html" %}
+    </div>
+  </section>
+{% else %}
+  <section class="preview-shell stack stack--loose">
+    {# ---- summary row -------------------------------------------------- #}
+    <div class="preview-summary">
+      <div class="preview-summary__file">
+        <div class="eyebrow">Preview</div>
+        <h2 class="preview-summary__name">{{ filename or 'your-collection.csv' }}</h2>
+        <div class="subtle" style="font-size: 13px;">
+          {{ counts.total }} row{{ 's' if counts.total != 1 else '' }} parsed
+          {% if qty_total %}· {{ qty_total }} cards staged{% endif %}
+        </div>
+      </div>
+      <div class="preview-stats">
+        <div class="preview-stat preview-stat--insert">
+          <div class="preview-stat__label">New cards</div>
+          <div class="preview-stat__value num">{{ counts.insert }}</div>
+        </div>
+        <div class="preview-stat preview-stat--increment">
+          <div class="preview-stat__label">Increments</div>
+          <div class="preview-stat__value num">{{ counts.increment }}</div>
+        </div>
+        <div class="preview-stat preview-stat--unmatched">
+          <div class="preview-stat__label">Unmatched</div>
+          <div class="preview-stat__value num">{{ counts.unmatched }}</div>
+        </div>
+        <div class="preview-stat preview-stat--total">
+          <div class="preview-stat__label">Total</div>
+          <div class="preview-stat__value num">{{ counts.total }}</div>
+        </div>
+      </div>
+    </div>
+
+    {% if warnings %}
+      <div class="callout callout--warn">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.86l-8.5 14.7A2 2 0 0 0 3.5 22h17a2 2 0 0 0 1.7-3.44l-8.5-14.7a2 2 0 0 0-3.4 0z"/></svg>
+        <div class="stack stack--tight">
+          <div class="callout__title">A few things to know</div>
+          <ul class="callout__list">
+            {% for w in warnings[:8] %}<li>{{ w }}</li>{% endfor %}
+            {% if warnings|length > 8 %}<li class="subtle">…and {{ warnings|length - 8 }} more.</li>{% endif %}
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+
+    {# ---- empty-state: nothing matched at all ----------------------------- #}
+    {% if counts.total > 0 and counts.insert == 0 and counts.increment == 0 %}
+      <div class="panel">
+        <div class="panel__body">
+          <div class="empty">
+            <div class="empty__icon">
+              <svg class="icon" viewBox="0 0 24 24" style="width:24px;height:24px;">
+                <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+              </svg>
+            </div>
+            <div class="empty__title">No rows matched your Scryfall cache</div>
+            <p class="empty__body">
+              Either the Scryfall cache hasn't been populated yet, or your CSV
+              points to printings we couldn't reach. Run the bulk sync —
+              {{ '{:,}'.format(scryfall_card_count) }} cards in cache right now —
+              then re-upload.
+            </p>
+            <div class="cluster">
+              <button type="button" class="btn btn--primary"
+                      hx-post="/import/scryfall-sync"
+                      hx-target="#scryfall-sync-mount"
+                      hx-swap="innerHTML">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15 6.7L3 16M3 12a9 9 0 0 1 15-6.7L21 8M3 8v4h4M21 16v-4h-4"/></svg>
+                Run Scryfall bulk sync
+              </button>
+              <button type="button" class="btn btn--ghost"
+                      hx-get="/import/dropzone"
+                      hx-target="#import-content"
+                      hx-swap="innerHTML">
+                ← Pick a different CSV
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+
+      {# ---- tabbed verdict table ------------------------------------------ #}
+      <div class="panel preview-panel">
+        <header class="panel__header" style="gap: 16px; flex-wrap: wrap;">
+          <div>
+            <div class="panel__title">Row-by-row verdict</div>
+            <div class="panel__subtitle">Preview only — nothing has been written yet.</div>
+          </div>
+          <div class="tabs" role="tablist" id="preview-tabs">
+            <button class="tab" type="button" role="tab" data-filter="all" aria-selected="true">
+              All · {{ counts.total }}
+            </button>
+            <button class="tab" type="button" role="tab" data-filter="insert" aria-selected="false">
+              New · {{ counts.insert }}
+            </button>
+            <button class="tab" type="button" role="tab" data-filter="increment" aria-selected="false">
+              Increments · {{ counts.increment }}
+            </button>
+            <button class="tab" type="button" role="tab" data-filter="unmatched" aria-selected="false">
+              Unmatched · {{ counts.unmatched }}
+            </button>
+          </div>
+        </header>
+        <div class="preview-rows" role="list">
+          {% for v in verdicts %}
+            <div class="preview-row preview-row--{{ v.action }}" data-action="{{ v.action }}" role="listitem">
+              <div class="preview-row__thumb">
+                {% if v.card_image %}
+                  <div class="mini-thumb" style="background-image: url('{{ v.card_image }}');"></div>
+                {% else %}
+                  <div class="mini-thumb preview-row__thumb-blank">
+                    {{ (v.card_name or v.row.name or '?')[0]|upper }}
+                  </div>
+                {% endif %}
+              </div>
+              <div class="preview-row__main">
+                <div class="preview-row__name">
+                  {{ v.card_name or v.row.name or '—' }}
+                </div>
+                <div class="preview-row__meta">
+                  <span class="badge badge--ghost">
+                    {{ (v.card_set_code or v.row.set_code or '?')|upper }}
+                    {% if v.card_collector_number or v.row.collector_number %}
+                      · {{ v.card_collector_number or v.row.collector_number }}
+                    {% endif %}
+                  </span>
+                  {% if v.card_set %}<span class="subtle preview-row__set">{{ v.card_set }}</span>{% endif %}
+                </div>
+              </div>
+              <div class="preview-row__chips cluster cluster--tight">
+                {{ condition_badge(v.row.condition) }}
+                {% if v.row.finish != 'nonfoil' %}{{ foil_indicator(v.row.finish) }}{% endif %}
+                {% if v.row.language and v.row.language != 'en' %}
+                  <span class="badge">{{ v.row.language|upper }}</span>
+                {% endif %}
+                {% if v.row.altered %}<span class="badge badge--warn">Altered</span>{% endif %}
+                {% if v.row.misprint %}<span class="badge badge--warn">Misprint</span>{% endif %}
+              </div>
+              <div class="preview-row__qty">
+                <span class="preview-row__qty-num num">×{{ v.row.quantity }}</span>
+              </div>
+              <div class="preview-row__verdict">
+                {% if v.action == 'insert' %}
+                  <span class="verdict verdict--insert">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                    New
+                  </span>
+                {% elif v.action == 'increment' %}
+                  <span class="verdict verdict--increment" title="Was {{ v.current_qty }}, will be {{ v.new_qty }}">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                    {{ v.current_qty }} → {{ v.new_qty }}
+                  </span>
+                {% else %}
+                  <span class="verdict verdict--unmatched" title="{{ v.reason or 'No match' }}">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+                    Unmatched
+                  </span>
+                  {% if v.reason %}<div class="subtle preview-row__reason">{{ v.reason }}</div>{% endif %}
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {# ---- action bar --------------------------------------------------- #}
+      <div class="preview-actions cluster" style="justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div class="subtle" style="font-size: 12.5px;">
+          {% if counts.unmatched > 0 %}
+            Unmatched rows are skipped — they don't block the commit.
+          {% else %}
+            Everything resolved cleanly. You're good to go.
+          {% endif %}
+        </div>
+        <div class="cluster">
+          <button type="button" class="btn btn--ghost"
+                  hx-get="/import/dropzone"
+                  hx-target="#import-content"
+                  hx-swap="innerHTML">
+            Cancel
+          </button>
+          {% if counts.insert + counts.increment > 0 and preview_id %}
+            <form hx-post="/import/commit"
+                  hx-target="#import-content"
+                  hx-swap="innerHTML"
+                  style="display: inline;">
+              <input type="hidden" name="preview_id" value="{{ preview_id }}"/>
+              <button type="submit" class="btn btn--primary">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+                Commit {{ counts.insert + counts.increment }} row{{ 's' if (counts.insert + counts.increment) != 1 else '' }}
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </section>
+
+  <script>
+    (function () {
+      const tabs = document.querySelectorAll("#preview-tabs .tab");
+      const rows = document.querySelectorAll(".preview-row");
+      if (!tabs.length) return;
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          tabs.forEach((t) => t.setAttribute("aria-selected", t === tab ? "true" : "false"));
+          const filter = tab.dataset.filter;
+          rows.forEach((row) => {
+            const show = filter === "all" || row.dataset.action === filter;
+            row.style.display = show ? "" : "none";
+          });
+        });
+      });
+    })();
+  </script>
+{% endif %}

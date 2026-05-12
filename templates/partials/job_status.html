@@ -1,0 +1,51 @@
+{% macro job_status(job, poll_url=None, terminal_swap_url=None) -%}
+<div id="job-{{ job.id }}"
+     {% if not job.is_terminal and poll_url %}
+       hx-get="{{ poll_url }}"
+       hx-trigger="every 800ms"
+       hx-swap="outerHTML"
+     {% endif %}>
+  <div class="stack stack--tight">
+    <div class="cluster" style="justify-content: space-between;">
+      <div class="cluster cluster--tight">
+        {% if job.status == 'running' %}
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--gold-1); animation: spin 1.4s linear infinite;">
+            <path d="M21 12a9 9 0 1 1-6.2-8.55" />
+          </svg>
+        {% elif job.status == 'completed' %}
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--success);">
+            <path d="M5 12l5 5L20 7" />
+          </svg>
+        {% elif job.status == 'failed' %}
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--danger);">
+            <circle cx="12" cy="12" r="9" /><path d="M9 9l6 6M15 9l-6 6" />
+          </svg>
+        {% else %}
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--text-3);">
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+        {% endif %}
+        <span style="font-weight: 500; color: var(--text-1);">{{ job.label }}</span>
+      </div>
+      <span class="num muted" style="font-size: 12px;">
+        {% if job.total %}{{ job.done }} / {{ job.total }}{% else %}{{ job.done }}{% endif %}
+        · {{ job.progress_pct }}%
+      </span>
+    </div>
+    <div class="progress" aria-label="Progress">
+      <div class="progress__bar" style="width: {{ job.progress_pct }}%;"></div>
+    </div>
+    {% if job.detail %}
+      <p class="subtle" style="font-size: 12px; margin: 4px 0 0;">{{ job.detail }}</p>
+    {% endif %}
+    {% if job.error %}
+      <p style="color: var(--danger); font-size: 12.5px; margin: 4px 0 0;">{{ job.error }}</p>
+    {% endif %}
+  </div>
+</div>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{%- endmacro %}
+
+{% if job is defined %}{{ job_status(job, poll_url=poll_url) }}{% endif %}

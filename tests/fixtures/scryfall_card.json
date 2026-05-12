@@ -1,0 +1,25 @@
+{
+  "id": "abc12345-0000-0000-0000-000000000001",
+  "oracle_id": "oracle-bolt-xyz",
+  "name": "Lightning Bolt",
+  "lang": "en",
+  "set": "lea",
+  "set_name": "Limited Edition Alpha",
+  "collector_number": "161",
+  "rarity": "common",
+  "type_line": "Instant",
+  "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+  "mana_cost": "{R}",
+  "cmc": 1.0,
+  "colors": ["R"],
+  "color_identity": ["R"],
+  "finishes": ["nonfoil"],
+  "image_uris": {
+    "small": "https://cards.scryfall.io/small/abc.jpg",
+    "normal": "https://cards.scryfall.io/normal/abc.jpg",
+    "art_crop": "https://cards.scryfall.io/art_crop/abc.jpg"
+  },
+  "tcgplayer_id": 9999,
+  "legalities": {"commander": "legal", "modern": "legal"},
+  "rulings_uri": "https://api.scryfall.com/cards/abc/rulings"
+}
